@@ -15,22 +15,25 @@ import type { Peak } from "../ms/peaks";
 const plot_height = 460;
 const min_width = 320;
 const line_style = { stroke: "#334155", strokeWidth: 1.5 };
+const baseline_style = { stroke: "#ef4444", strokeWidth: 2, strokeDasharray: "6 4" };
 const peak_fill = "rgba(51, 65, 85, 0.16)";
 const peak_stroke = "#334155";
 
 interface ChartProps {
   points: Point[];
   peaks: Peak[];
+  baseline: Point[] | null;
   width: number;
 }
 
-function Chart({ points, peaks, width }: ChartProps) {
+function Chart({ points, peaks, baseline, width }: ChartProps) {
   useAxisWheelZoom();
   const zoom = useAxisZoom();
 
   return (
     <Plot width={width} height={plot_height}>
       <LineSeries data={points} xAxis="x" yAxis="y" lineStyle={line_style} />
+      {baseline && <LineSeries data={baseline} xAxis="x" yAxis="y" lineStyle={baseline_style} />}
       <Axis id="x" position="bottom" label="Time (min)" displayPrimaryGridLines={false} />
       <Axis id="y" position="left" label="Intensity" displayPrimaryGridLines />
       <Annotations>
@@ -62,9 +65,10 @@ function Chart({ points, peaks, width }: ChartProps) {
 interface EicPlotProps {
   points: Point[];
   peaks: Peak[];
+  baseline: Point[] | null;
 }
 
-export const EicPlot = memo(function EicPlot({ points, peaks }: EicPlotProps) {
+export const EicPlot = memo(function EicPlot({ points, peaks, baseline }: EicPlotProps) {
   const wrap = useRef<HTMLDivElement>(null);
   const [width, set_width] = useState(800);
 
@@ -84,7 +88,7 @@ export const EicPlot = memo(function EicPlot({ points, peaks }: EicPlotProps) {
     <div ref={wrap} className="plot-wrap">
       {has_points ? (
         <PlotController>
-          <Chart points={points} peaks={peaks} width={width} />
+          <Chart points={points} peaks={peaks} baseline={baseline} width={width} />
         </PlotController>
       ) : (
         <div className="plot-empty">No signal in this range</div>

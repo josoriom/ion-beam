@@ -40,6 +40,13 @@ export interface State {
   metabolites_open: boolean;
   samples_width: number;
   metabolites_width: number;
+  config_open: boolean;
+  min_intensity: number;
+  min_width: number;
+  min_snr: number;
+  auto_noise: boolean;
+  auto_baseline: boolean;
+  display_baseline: boolean;
   samples: SamplesState | null;
   file: FileState | null;
   outcome: Outcome | null;
@@ -55,6 +62,13 @@ export const initial_state: State = {
   metabolites_open: true,
   samples_width: 300,
   metabolites_width: 320,
+  config_open: false,
+  min_intensity: 500,
+  min_width: 2,
+  min_snr: 2,
+  auto_noise: true,
+  auto_baseline: true,
+  display_baseline: false,
   samples: null,
   file: null,
   outcome: null,
@@ -70,6 +84,13 @@ export type Action =
   | { type: "toggle_metabolites" }
   | { type: "resize_samples"; delta: number }
   | { type: "resize_metabolites"; delta: number }
+  | { type: "toggle_config" }
+  | { type: "set_min_intensity"; value: number }
+  | { type: "set_min_width"; value: number }
+  | { type: "set_min_snr"; value: number }
+  | { type: "toggle_auto_noise" }
+  | { type: "toggle_auto_baseline" }
+  | { type: "toggle_display_baseline" }
   | { type: "samples_loaded"; path: string; names: string[] }
   | { type: "samples_failed"; path: string; message: string }
   | { type: "file_opened"; url: string; file: SampleFile }
@@ -109,6 +130,27 @@ export function reducer(state: State, action: Action): State {
         break;
       case "toggle_metabolites":
         draft.metabolites_open = !draft.metabolites_open;
+        break;
+      case "toggle_config":
+        draft.config_open = !draft.config_open;
+        break;
+      case "set_min_intensity":
+        draft.min_intensity = action.value;
+        break;
+      case "set_min_width":
+        draft.min_width = action.value;
+        break;
+      case "set_min_snr":
+        draft.min_snr = action.value;
+        break;
+      case "toggle_auto_noise":
+        draft.auto_noise = !draft.auto_noise;
+        break;
+      case "toggle_auto_baseline":
+        draft.auto_baseline = !draft.auto_baseline;
+        break;
+      case "toggle_display_baseline":
+        draft.display_baseline = !draft.display_baseline;
         break;
       case "resize_samples":
         draft.samples_width = clamp_width(draft.samples_width + action.delta);

@@ -1,11 +1,14 @@
+import { useMemo } from "react";
 import { compounds } from "./data/compounds";
 import { get_peaks } from "./ms/peaks";
+import { get_baseline } from "./ms/baseline";
 import { PathInput } from "./components/PathInput";
 import { SampleList } from "./components/SampleList";
 import { MzInput } from "./components/MzInput";
 import { CompoundList } from "./components/CompoundList";
 import { EicPlot } from "./components/EicPlot";
 import { PeakTable } from "./components/PeakTable";
+import { PeakConfig } from "./components/PeakConfig";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { useAppDispatch, useAppState } from "./context/context";
 import { select_view } from "./context/reducer";
@@ -16,9 +19,20 @@ function App() {
   const dispatch = useAppDispatch();
   const view = select_view(state);
 
+  const baseline = useMemo(
+    () => (state.display_baseline && view.eic_ready ? get_baseline(view.points) : null),
+    [state.display_baseline, view.eic_ready, view.points],
+  );
+
   function run_peak_picking() {
     if (!view.eic_ready) return;
-    const list = get_peaks(view.points);
+    const list = get_peaks(view.points, {
+      minIntensity: state.min_intensity,
+      minPeakWidthPoints: state.min_width,
+      minSnr: state.min_snr,
+      autoNoise: state.auto_noise,
+      autoBaseline: state.auto_baseline,
+    });
     dispatch({ type: "peaks_found", key: `${view.url}|${view.mz}`, list });
   }
 
@@ -68,14 +82,25 @@ function App() {
                 : "Pick a sample"}
             </p>
           </div>
-          <button
-            type="button"
-            className="run-button"
-            disabled={!view.eic_ready}
-            onClick={run_peak_picking}
-          >
-            ▶ Run peak picking
-          </button>
+          <div className="content-actions">
+            <PeakConfig
+              open={state.config_open}
+              min_intensity={state.min_intensity}
+              min_width={state.min_width}
+              min_snr={state.min_snr}
+              auto_noise={state.auto_noise}
+              auto_baseline={state.auto_baseline}
+              display_baseline={state.display_baseline}
+            />
+            <button
+              type="button"
+              className="run-button"
+              disabled={!view.eic_ready}
+              onClick={run_peak_picking}
+            >
+              ▶ Run peak picking
+            </button>
+          </div>
         </header>
 
         <div className="content-body">
@@ -93,7 +118,9 @@ function App() {
                 </p>
               )}
               {view.eic_loading && <p className="banner">Building the chromatogram…</p>}
-              {view.eic_ready && <EicPlot points={view.points} peaks={view.peaks} />}
+              {view.eic_ready && (
+                <EicPlot points={view.points} peaks={view.peaks} baseline={baseline} />
+              )}
             </section>
           )}
 
