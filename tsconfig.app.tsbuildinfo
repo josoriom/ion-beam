@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/compoundlist.tsx","./src/components/eicplot.tsx","./src/components/mzinput.tsx","./src/components/pathinput.tsx","./src/components/samplelist.tsx","./src/data/compounds.ts","./src/data/targets.ts","./src/ms/eic.ts","./src/ms/ion_file.ts","./src/ms/list_samples.ts"],"version":"6.0.3"}

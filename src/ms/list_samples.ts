@@ -1,5 +1,7 @@
+import { to_fetchable } from './remote';
+
 export async function get_samples(path: string): Promise<string[]> {
-  const response = await fetch(path);
+  const response = await fetch(to_fetchable(path));
   if (!response.ok) {
     throw new Error(`server answered ${response.status}`);
   }
