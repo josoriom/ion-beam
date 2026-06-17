@@ -4,14 +4,13 @@ import { get_peaks } from "./ms/peaks";
 import { get_baseline } from "./ms/baseline";
 import { PathInput } from "./components/PathInput";
 import { SampleList } from "./components/SampleList";
-import { MzInput } from "./components/MzInput";
 import { CompoundList } from "./components/CompoundList";
+import { ConfigPanel } from "./components/ConfigPanel";
 import { EicPlot } from "./components/EicPlot";
 import { PeakTable } from "./components/PeakTable";
-import { PeakConfig } from "./components/PeakConfig";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { useAppDispatch, useAppState } from "./context/context";
-import { select_view } from "./context/reducer";
+import { peak_options, select_view } from "./context/reducer";
 import "./App.css";
 
 function App() {
@@ -24,15 +23,11 @@ function App() {
     [state.display_baseline, view.eic_ready, view.points],
   );
 
+  const annotate_rt = state.annotate && state.target_rt !== null ? state.target_rt : null;
+
   function run_peak_picking() {
     if (!view.eic_ready) return;
-    const list = get_peaks(view.points, {
-      minIntensity: state.min_intensity,
-      minPeakWidthPoints: state.min_width,
-      minSnr: state.min_snr,
-      autoNoise: state.auto_noise,
-      autoBaseline: state.auto_baseline,
-    });
+    const list = get_peaks(view.points, peak_options(state));
     dispatch({ type: "peaks_found", key: `${view.url}|${view.mz}`, list });
   }
 
@@ -69,7 +64,9 @@ function App() {
       </aside>
 
       {state.samples_open && (
-        <ResizeHandle on_resize={(delta) => dispatch({ type: "resize_samples", delta })} />
+        <ResizeHandle
+          on_resize={(cursor_x) => dispatch({ type: "set_samples_width", value: cursor_x })}
+        />
       )}
 
       <main className="content">
@@ -82,16 +79,7 @@ function App() {
                 : "Pick a sample"}
             </p>
           </div>
-          <div className="content-actions">
-            <PeakConfig
-              open={state.config_open}
-              min_intensity={state.min_intensity}
-              min_width={state.min_width}
-              min_snr={state.min_snr}
-              auto_noise={state.auto_noise}
-              auto_baseline={state.auto_baseline}
-              display_baseline={state.display_baseline}
-            />
+          {!state.auto_peak_picking && (
             <button
               type="button"
               className="run-button"
@@ -100,12 +88,10 @@ function App() {
             >
               ▶ Run peak picking
             </button>
-          </div>
+          )}
         </header>
 
         <div className="content-body">
-          <MzInput value={state.mz_text} />
-
           {view.active_sample && (
             <section className="plot-card">
               {!view.mz_valid && <p className="banner">Enter a valid m/z</p>}
@@ -119,7 +105,12 @@ function App() {
               )}
               {view.eic_loading && <p className="banner">Building the chromatogram…</p>}
               {view.eic_ready && (
-                <EicPlot points={view.points} peaks={view.peaks} baseline={baseline} />
+                <EicPlot
+                  points={view.points}
+                  peaks={view.peaks}
+                  baseline={baseline}
+                  annotate_rt={annotate_rt}
+                />
               )}
             </section>
           )}
@@ -129,7 +120,11 @@ function App() {
       </main>
 
       {state.metabolites_open && (
-        <ResizeHandle on_resize={(delta) => dispatch({ type: "resize_metabolites", delta })} />
+        <ResizeHandle
+          on_resize={(cursor_x) =>
+            dispatch({ type: "set_metabolites_width", value: window.innerWidth - cursor_x })
+          }
+        />
       )}
 
       <aside
@@ -150,6 +145,7 @@ function App() {
         </div>
         {state.metabolites_open && (
           <div className="sidebar-body">
+            <ConfigPanel />
             <CompoundList compounds={compounds} selected_label={state.picked_label} />
           </div>
         )}

@@ -1,17 +1,17 @@
 interface ResizeHandleProps {
-  on_resize: (delta: number) => void;
+  on_resize: (cursor_x: number) => void;
 }
 
 export function ResizeHandle({ on_resize }: ResizeHandleProps) {
-  function start(start_x: number) {
-    let last_x = start_x;
+  function start() {
+    document.body.classList.add("resizing");
 
     function move(event: MouseEvent) {
-      on_resize(event.clientX - last_x);
-      last_x = event.clientX;
+      on_resize(event.clientX);
     }
 
     function stop() {
+      document.body.classList.remove("resizing");
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", stop);
     }
@@ -25,7 +25,7 @@ export function ResizeHandle({ on_resize }: ResizeHandleProps) {
       className="resize-handle"
       onMouseDown={(event) => {
         event.preventDefault();
-        start(event.clientX);
+        start();
       }}
     />
   );

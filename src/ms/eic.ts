@@ -8,9 +8,11 @@ export interface Point {
 export async function get_eic(
   file: SampleFile,
   mz: number,
-  time_range: { from: number; to: number },
+  range: { from: number; to: number },
+  ppm: number,
+  mz_tol: number,
 ): Promise<{ points: Point[] }> {
-  const eic = await calculateEic(file, mz, time_range);
+  const eic = await calculateEic(file, mz, range, ppm, mz_tol);
   return { points: to_points(eic.x, eic.y) };
 }
 

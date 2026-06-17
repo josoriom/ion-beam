@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Annotation,
   Annotations,
@@ -18,17 +18,28 @@ const line_style = { stroke: "#334155", strokeWidth: 1.5 };
 const baseline_style = { stroke: "#ef4444", strokeWidth: 2, strokeDasharray: "6 4" };
 const peak_fill = "rgba(51, 65, 85, 0.16)";
 const peak_stroke = "#334155";
+const annotate_stroke = "#2563eb";
+
+function top_intensity(points: Point[]): number {
+  let top = 0;
+  for (const point of points) {
+    if (point.y > top) top = point.y;
+  }
+  return top;
+}
 
 interface ChartProps {
   points: Point[];
   peaks: Peak[];
   baseline: Point[] | null;
+  annotate_rt: number | null;
   width: number;
 }
 
-function Chart({ points, peaks, baseline, width }: ChartProps) {
+function Chart({ points, peaks, baseline, annotate_rt, width }: ChartProps) {
   useAxisWheelZoom();
   const zoom = useAxisZoom();
+  const top = useMemo(() => top_intensity(points), [points]);
 
   return (
     <Plot width={width} height={plot_height}>
@@ -37,6 +48,16 @@ function Chart({ points, peaks, baseline, width }: ChartProps) {
       <Axis id="x" position="bottom" label="Time (min)" displayPrimaryGridLines={false} />
       <Axis id="y" position="left" label="Intensity" displayPrimaryGridLines />
       <Annotations>
+        {annotate_rt !== null && (
+          <Annotation.Line
+            x1={annotate_rt}
+            x2={annotate_rt}
+            y1={0}
+            y2={top}
+            color={annotate_stroke}
+            strokeDasharray="5 4"
+          />
+        )}
         {peaks.flatMap((peak, index) => [
           <Annotation.Rectangle
             key={`box-${index}`}
@@ -66,9 +87,15 @@ interface EicPlotProps {
   points: Point[];
   peaks: Peak[];
   baseline: Point[] | null;
+  annotate_rt: number | null;
 }
 
-export const EicPlot = memo(function EicPlot({ points, peaks, baseline }: EicPlotProps) {
+export const EicPlot = memo(function EicPlot({
+  points,
+  peaks,
+  baseline,
+  annotate_rt,
+}: EicPlotProps) {
   const wrap = useRef<HTMLDivElement>(null);
   const [width, set_width] = useState(800);
 
@@ -88,7 +115,13 @@ export const EicPlot = memo(function EicPlot({ points, peaks, baseline }: EicPlo
     <div ref={wrap} className="plot-wrap">
       {has_points ? (
         <PlotController>
-          <Chart points={points} peaks={peaks} baseline={baseline} width={width} />
+          <Chart
+            points={points}
+            peaks={peaks}
+            baseline={baseline}
+            annotate_rt={annotate_rt}
+            width={width}
+          />
         </PlotController>
       ) : (
         <div className="plot-empty">No signal in this range</div>

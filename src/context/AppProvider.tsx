@@ -3,9 +3,9 @@ import type { SampleFile } from "msutils";
 import { get_samples } from "../ms/list_samples";
 import { open_ion_file } from "../ms/ion_file";
 import { get_eic } from "../ms/eic";
-import { time_range } from "../data/targets";
+import { get_peaks } from "../ms/peaks";
 import { DispatchContext, StateContext } from "./context";
-import { initial_state, read_error, reducer, select_view } from "./reducer";
+import { initial_state, peak_options, read_error, reducer, select_view } from "./reducer";
 
 interface AppProviderProps {
   children: ReactNode;
@@ -14,8 +14,22 @@ interface AppProviderProps {
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(reducer, initial_state);
 
-  const { path } = state;
-  const { url, file, mz, mz_valid } = select_view(state);
+  const {
+    path,
+    rt_from,
+    rt_to,
+    ppm,
+    mz_tol,
+    auto_peak_picking,
+    min_intensity,
+    min_integral,
+    min_width,
+    min_snr,
+    auto_noise,
+    auto_baseline,
+    allow_overlap,
+  } = state;
+  const { url, file, mz, mz_valid, eic_ready, points } = select_view(state);
 
   useEffect(() => {
     let active = true;
@@ -57,7 +71,7 @@ export function AppProvider({ children }: AppProviderProps) {
     if (!file || !mz_valid) return undefined;
     const key = `${url}|${mz}`;
     let active = true;
-    get_eic(file, mz, time_range)
+    get_eic(file, mz, { from: rt_from, to: rt_to }, ppm, mz_tol)
       .then((result) => {
         if (active) dispatch({ type: "eic_ready", key, points: result.points });
       })
@@ -67,7 +81,35 @@ export function AppProvider({ children }: AppProviderProps) {
     return () => {
       active = false;
     };
-  }, [file, mz, mz_valid, url]);
+  }, [file, mz, mz_valid, url, rt_from, rt_to, ppm, mz_tol]);
+
+  useEffect(() => {
+    if (!auto_peak_picking || !eic_ready) return;
+    const options = peak_options({
+      min_intensity,
+      min_integral,
+      min_width,
+      min_snr,
+      auto_noise,
+      auto_baseline,
+      allow_overlap,
+    });
+    const list = get_peaks(points, options);
+    dispatch({ type: "peaks_found", key: `${url}|${mz}`, list });
+  }, [
+    auto_peak_picking,
+    eic_ready,
+    points,
+    url,
+    mz,
+    min_intensity,
+    min_integral,
+    min_width,
+    min_snr,
+    auto_noise,
+    auto_baseline,
+    allow_overlap,
+  ]);
 
   return (
     <StateContext.Provider value={state}>

@@ -1,9 +1,9 @@
 import { produce } from "immer";
-import type { SampleFile } from "msutils";
+import type { PeakOptions, SampleFile } from "msutils";
 import type { Point } from "../ms/eic";
 import type { Peak } from "../ms/peaks";
 import type { Compound } from "../data/compounds";
-import { default_mz, default_path } from "../data/targets";
+import { default_mz, default_path, time_range } from "../data/targets";
 
 export interface SamplesState {
   path: string;
@@ -36,17 +36,25 @@ export interface State {
   picked_sample: string | null;
   mz_text: string;
   picked_label: string | null;
+  target_rt: number | null;
   samples_open: boolean;
   metabolites_open: boolean;
   samples_width: number;
   metabolites_width: number;
-  config_open: boolean;
   min_intensity: number;
+  min_integral: number;
   min_width: number;
   min_snr: number;
   auto_noise: boolean;
   auto_baseline: boolean;
+  allow_overlap: boolean;
+  annotate: boolean;
   display_baseline: boolean;
+  auto_peak_picking: boolean;
+  rt_from: number;
+  rt_to: number;
+  ppm: number;
+  mz_tol: number;
   samples: SamplesState | null;
   file: FileState | null;
   outcome: Outcome | null;
@@ -58,17 +66,25 @@ export const initial_state: State = {
   picked_sample: null,
   mz_text: String(default_mz),
   picked_label: null,
+  target_rt: null,
   samples_open: true,
   metabolites_open: true,
   samples_width: 300,
   metabolites_width: 320,
-  config_open: false,
   min_intensity: 500,
+  min_integral: 0,
   min_width: 2,
   min_snr: 2,
   auto_noise: true,
   auto_baseline: true,
+  allow_overlap: false,
+  annotate: true,
   display_baseline: false,
+  auto_peak_picking: true,
+  rt_from: time_range.from,
+  rt_to: time_range.to,
+  ppm: 20,
+  mz_tol: 0.005,
   samples: null,
   file: null,
   outcome: null,
@@ -82,15 +98,22 @@ export type Action =
   | { type: "pick_compound"; compound: Compound }
   | { type: "toggle_samples" }
   | { type: "toggle_metabolites" }
-  | { type: "resize_samples"; delta: number }
-  | { type: "resize_metabolites"; delta: number }
-  | { type: "toggle_config" }
+  | { type: "set_samples_width"; value: number }
+  | { type: "set_metabolites_width"; value: number }
   | { type: "set_min_intensity"; value: number }
+  | { type: "set_min_integral"; value: number }
   | { type: "set_min_width"; value: number }
   | { type: "set_min_snr"; value: number }
   | { type: "toggle_auto_noise" }
   | { type: "toggle_auto_baseline" }
+  | { type: "toggle_allow_overlap" }
+  | { type: "toggle_annotate" }
   | { type: "toggle_display_baseline" }
+  | { type: "toggle_auto_peak_picking" }
+  | { type: "set_rt_from"; value: number }
+  | { type: "set_rt_to"; value: number }
+  | { type: "set_ppm"; value: number }
+  | { type: "set_mz_tol"; value: number }
   | { type: "samples_loaded"; path: string; names: string[] }
   | { type: "samples_failed"; path: string; message: string }
   | { type: "file_opened"; url: string; file: SampleFile }
@@ -120,10 +143,12 @@ export function reducer(state: State, action: Action): State {
       case "change_mz":
         draft.mz_text = action.value;
         draft.picked_label = null;
+        draft.target_rt = null;
         break;
       case "pick_compound":
         draft.mz_text = String(action.compound.mz);
         draft.picked_label = action.compound.label;
+        draft.target_rt = action.compound.rt;
         break;
       case "toggle_samples":
         draft.samples_open = !draft.samples_open;
@@ -131,11 +156,11 @@ export function reducer(state: State, action: Action): State {
       case "toggle_metabolites":
         draft.metabolites_open = !draft.metabolites_open;
         break;
-      case "toggle_config":
-        draft.config_open = !draft.config_open;
-        break;
       case "set_min_intensity":
         draft.min_intensity = action.value;
+        break;
+      case "set_min_integral":
+        draft.min_integral = action.value;
         break;
       case "set_min_width":
         draft.min_width = action.value;
@@ -149,14 +174,35 @@ export function reducer(state: State, action: Action): State {
       case "toggle_auto_baseline":
         draft.auto_baseline = !draft.auto_baseline;
         break;
+      case "toggle_allow_overlap":
+        draft.allow_overlap = !draft.allow_overlap;
+        break;
+      case "toggle_annotate":
+        draft.annotate = !draft.annotate;
+        break;
       case "toggle_display_baseline":
         draft.display_baseline = !draft.display_baseline;
         break;
-      case "resize_samples":
-        draft.samples_width = clamp_width(draft.samples_width + action.delta);
+      case "toggle_auto_peak_picking":
+        draft.auto_peak_picking = !draft.auto_peak_picking;
         break;
-      case "resize_metabolites":
-        draft.metabolites_width = clamp_width(draft.metabolites_width - action.delta);
+      case "set_rt_from":
+        draft.rt_from = action.value;
+        break;
+      case "set_rt_to":
+        draft.rt_to = action.value;
+        break;
+      case "set_ppm":
+        draft.ppm = action.value;
+        break;
+      case "set_mz_tol":
+        draft.mz_tol = action.value;
+        break;
+      case "set_samples_width":
+        draft.samples_width = clamp_width(action.value);
+        break;
+      case "set_metabolites_width":
+        draft.metabolites_width = clamp_width(action.value);
         break;
       case "samples_loaded":
         draft.samples = { path: action.path, status: "ok", names: action.names };
@@ -181,6 +227,29 @@ export function reducer(state: State, action: Action): State {
         break;
     }
   });
+}
+
+export type PeakSettings = Pick<
+  State,
+  | "min_intensity"
+  | "min_integral"
+  | "min_width"
+  | "min_snr"
+  | "auto_noise"
+  | "auto_baseline"
+  | "allow_overlap"
+>;
+
+export function peak_options(settings: PeakSettings): PeakOptions {
+  return {
+    minIntensity: settings.min_intensity,
+    minIntegral: settings.min_integral,
+    minPeakWidthPoints: settings.min_width,
+    minSnr: settings.min_snr,
+    autoNoise: settings.auto_noise,
+    autoBaseline: settings.auto_baseline,
+    allowOverlap: settings.allow_overlap,
+  };
 }
 
 export function read_error(error: unknown): string {
