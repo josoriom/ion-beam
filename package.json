@@ -1,10 +1,11 @@
 {
-  "name": "stream-ion",
+  "name": "ion-beam",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "mock": "node mock-server.mjs",
     "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

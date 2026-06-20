@@ -9,6 +9,10 @@ import { ConfigPanel } from "./components/ConfigPanel";
 import { EicPlot } from "./components/EicPlot";
 import { PeakTable } from "./components/PeakTable";
 import { ResizeHandle } from "./components/ResizeHandle";
+import { ModeSwitch } from "./components/ModeSwitch";
+import { ImageView } from "./components/ImageView";
+import { ImageTargets } from "./components/ImageTargets";
+import { RamMeter } from "./components/RamMeter";
 import { useAppDispatch, useAppState } from "./context/context";
 import { peak_options, select_view } from "./context/reducer";
 import "./App.css";
@@ -17,6 +21,7 @@ function App() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const view = select_view(state);
+  const imaging = state.mode === "imaging";
 
   const baseline = useMemo(
     () => (state.display_baseline && view.eic_ready ? get_baseline(view.points) : null),
@@ -39,7 +44,9 @@ function App() {
       >
         <div className="sidebar-head">
           {state.samples_open && <span className="sidebar-label">Samples</span>}
-          {state.samples_open && <span className="sidebar-count">{view.samples.length}</span>}
+          {state.samples_open && (
+            <span className="sidebar-count">{view.samples.length}</span>
+          )}
           <button
             type="button"
             className="sidebar-toggle"
@@ -72,14 +79,19 @@ function App() {
       <main className="content">
         <header className="content-head">
           <div className="content-head-text">
-            <h1 className="content-title">Extracted ion chromatogram</h1>
+            <h1 className="content-title">
+              {imaging ? "Ion image" : "Extracted ion chromatogram"}
+            </h1>
             <p className="content-sub">
-              {view.active_sample
-                ? `${view.active_sample} · m/z ${state.mz_text}`
-                : "Pick a sample"}
+              {imaging
+                ? `${view.active_sample ?? "Pick a file"} · ${state.image_targets.length} targets`
+                : view.active_sample
+                  ? `${view.active_sample} · m/z ${state.mz_text}`
+                  : "Pick a sample"}
             </p>
           </div>
-          {!state.auto_peak_picking && (
+          <ModeSwitch />
+          {!imaging && !state.auto_peak_picking && (
             <button
               type="button"
               className="run-button"
@@ -92,7 +104,8 @@ function App() {
         </header>
 
         <div className="content-body">
-          {view.active_sample && (
+          {imaging && <ImageView />}
+          {!imaging && view.active_sample && (
             <section className="plot-card">
               {!view.mz_valid && <p className="banner">Enter a valid m/z</p>}
               {view.file_failed && (
@@ -115,7 +128,7 @@ function App() {
             </section>
           )}
 
-          {view.peaks_ready && <PeakTable peaks={view.peaks} />}
+          {!imaging && view.peaks_ready && <PeakTable peaks={view.peaks} />}
         </div>
       </main>
 
@@ -140,16 +153,30 @@ function App() {
           >
             {state.metabolites_open ? "›" : "‹"}
           </button>
-          {state.metabolites_open && <span className="sidebar-label">Metabolites</span>}
-          {state.metabolites_open && <span className="sidebar-count">{compounds.length}</span>}
+          {state.metabolites_open && (
+            <span className="sidebar-label">{imaging ? "Targets" : "Metabolites"}</span>
+          )}
+          {state.metabolites_open && (
+            <span className="sidebar-count">
+              {imaging ? state.image_targets.length : compounds.length}
+            </span>
+          )}
         </div>
         {state.metabolites_open && (
           <div className="sidebar-body">
-            <ConfigPanel />
-            <CompoundList compounds={compounds} selected_label={state.picked_label} />
+            {imaging ? (
+              <ImageTargets />
+            ) : (
+              <>
+                <ConfigPanel />
+                <CompoundList compounds={compounds} selected_label={state.picked_label} />
+              </>
+            )}
           </div>
         )}
       </aside>
+
+      <RamMeter />
     </div>
   );
 }

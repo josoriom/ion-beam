@@ -4,6 +4,8 @@ import { get_samples } from "../ms/list_samples";
 import { open_ion_file } from "../ms/ion_file";
 import { get_eic } from "../ms/eic";
 import { get_peaks } from "../ms/peaks";
+import { request_image, type ImageProgress } from "../ms/image_client";
+import { image_key, image_level, target_tolerance } from "../data/image_targets";
 import { DispatchContext, StateContext } from "./context";
 import { initial_state, peak_options, read_error, reducer, select_view } from "./reducer";
 
@@ -13,6 +15,8 @@ interface AppProviderProps {
 
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(reducer, initial_state);
+
+  const { mode, selected_mz, images, samples } = state;
 
   const {
     path,
@@ -32,6 +36,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const { url, file, mz, mz_valid, eic_ready, points } = select_view(state);
 
   useEffect(() => {
+    if (samples && samples.path === path) return undefined;
     let active = true;
     get_samples(path)
       .then((names) => {
@@ -43,10 +48,10 @@ export function AppProvider({ children }: AppProviderProps) {
     return () => {
       active = false;
     };
-  }, [path]);
+  }, [path, samples]);
 
   useEffect(() => {
-    if (!url) return undefined;
+    if (mode !== "eic" || !url) return undefined;
     let active = true;
     let opened: SampleFile | null = null;
     open_ion_file(url)
@@ -65,7 +70,7 @@ export function AppProvider({ children }: AppProviderProps) {
       active = false;
       opened?.dispose?.();
     };
-  }, [url]);
+  }, [mode, url]);
 
   useEffect(() => {
     if (!file || !mz_valid) return undefined;
@@ -110,6 +115,39 @@ export function AppProvider({ children }: AppProviderProps) {
     auto_baseline,
     allow_overlap,
   ]);
+
+  useEffect(() => {
+    if (mode !== "imaging" || !url || selected_mz === null) return undefined;
+    const key = image_key(url, selected_mz);
+    if (images[key]) return undefined;
+
+    let active = true;
+    let last_percent = -1;
+    const on_progress = (progress: ImageProgress) => {
+      if (!active) return;
+      const percent =
+        progress.total > 0 ? Math.floor((progress.fetched / progress.total) * 100) : 0;
+      if (percent === last_percent) return;
+      last_percent = percent;
+      dispatch({
+        type: "image_progress",
+        fetched: progress.fetched,
+        total: progress.total,
+        memory: progress.memory,
+      });
+    };
+    request_image(url, selected_mz, target_tolerance(selected_mz), image_level, on_progress)
+      .then((image) => {
+        if (active) dispatch({ type: "image_ready", url, mz: selected_mz, image });
+      })
+      .catch((error: unknown) => {
+        if (active)
+          dispatch({ type: "image_failed", url, mz: selected_mz, message: read_error(error) });
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode, url, selected_mz, images]);
 
   return (
     <StateContext.Provider value={state}>

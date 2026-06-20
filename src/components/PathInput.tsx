@@ -8,16 +8,24 @@ interface PathInputProps {
 export const PathInput = memo(function PathInput({ path }: PathInputProps) {
   const dispatch = useAppDispatch();
   return (
-    <label className="path-input">
+    <div className="path-input">
       <span className="path-input-label">Data folder URL</span>
-      <input
-        type="text"
-        value={path}
-        spellCheck={false}
-        onChange={(event) =>
-          dispatch({ type: "set_path", path: event.target.value })
-        }
-      />
-    </label>
+      <div className="path-input-row">
+        <input
+          type="text"
+          value={path}
+          spellCheck={false}
+          onChange={(event) => dispatch({ type: "set_path", path: event.target.value })}
+        />
+        <button
+          type="button"
+          className="reload-button"
+          title="Reload files"
+          onClick={() => dispatch({ type: "reload_samples" })}
+        >
+          ⟳
+        </button>
+      </div>
+    </div>
   );
 });

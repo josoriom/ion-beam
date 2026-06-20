@@ -2,8 +2,17 @@ import { produce } from "immer";
 import type { PeakOptions, SampleFile } from "msutils";
 import type { Point } from "../ms/eic";
 import type { Peak } from "../ms/peaks";
+import type { RenderedImage } from "../ms/ion_image";
 import type { Compound } from "../data/compounds";
 import { default_mz, default_path, time_range } from "../data/targets";
+import {
+  default_image_targets,
+  image_key,
+  target_id,
+  type ImageTarget,
+} from "../data/image_targets";
+
+export type Mode = "eic" | "imaging";
 
 export interface SamplesState {
   path: string;
@@ -31,7 +40,24 @@ export interface Peaks {
   list: Peak[];
 }
 
+export interface ImageOutcome {
+  status: "ok" | "error";
+  image?: RenderedImage;
+  message?: string;
+}
+
+export interface ImageProgress {
+  fetched: number;
+  total: number;
+  memory: number | null;
+}
+
 export interface State {
+  mode: Mode;
+  image_targets: ImageTarget[];
+  selected_mz: number | null;
+  images: Record<string, ImageOutcome>;
+  image_progress: ImageProgress | null;
   path: string;
   picked_sample: string | null;
   mz_text: string;
@@ -62,6 +88,11 @@ export interface State {
 }
 
 export const initial_state: State = {
+  mode: "eic",
+  image_targets: default_image_targets,
+  selected_mz: null,
+  images: {},
+  image_progress: null,
   path: default_path,
   picked_sample: null,
   mz_text: String(default_mz),
@@ -92,6 +123,14 @@ export const initial_state: State = {
 };
 
 export type Action =
+  | { type: "set_mode"; mode: Mode }
+  | { type: "reload_samples" }
+  | { type: "add_image_target"; mz: number }
+  | { type: "remove_image_target"; mz: number }
+  | { type: "select_image_target"; mz: number }
+  | { type: "image_progress"; fetched: number; total: number; memory: number | null }
+  | { type: "image_ready"; url: string; mz: number; image: RenderedImage }
+  | { type: "image_failed"; url: string; mz: number; message: string }
   | { type: "set_path"; path: string }
   | { type: "pick_sample"; name: string }
   | { type: "change_mz"; value: string }
@@ -134,6 +173,52 @@ function clamp_width(value: number): number {
 export function reducer(state: State, action: Action): State {
   return produce(state, (draft: State) => {
     switch (action.type) {
+      case "set_mode":
+        draft.mode = action.mode;
+        break;
+      case "reload_samples":
+        draft.samples = null;
+        break;
+      case "add_image_target": {
+        const exists = draft.image_targets.some((target) => target.mz === action.mz);
+        if (!exists) {
+          draft.image_targets.push({ id: target_id(action.mz), mz: action.mz });
+        }
+        draft.selected_mz = action.mz;
+        draft.image_progress = null;
+        break;
+      }
+      case "remove_image_target":
+        draft.image_targets = draft.image_targets.filter(
+          (target) => target.mz !== action.mz,
+        );
+        if (draft.selected_mz === action.mz) draft.selected_mz = null;
+        break;
+      case "select_image_target":
+        draft.selected_mz = action.mz;
+        draft.image_progress = null;
+        break;
+      case "image_progress":
+        draft.image_progress = {
+          fetched: action.fetched,
+          total: action.total,
+          memory: action.memory,
+        };
+        break;
+      case "image_ready":
+        draft.images[image_key(action.url, action.mz)] = {
+          status: "ok",
+          image: action.image,
+        };
+        draft.image_progress = null;
+        break;
+      case "image_failed":
+        draft.images[image_key(action.url, action.mz)] = {
+          status: "error",
+          message: action.message,
+        };
+        draft.image_progress = null;
+        break;
       case "set_path":
         draft.path = action.path;
         break;
