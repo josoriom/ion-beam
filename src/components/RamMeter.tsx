@@ -11,7 +11,10 @@ function read_memory(): Memory | null {
     memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
   };
   if (!perf.memory) return null;
-  return { used: perf.memory.usedJSHeapSize, limit: perf.memory.jsHeapSizeLimit };
+  return {
+    used: perf.memory.usedJSHeapSize,
+    limit: perf.memory.jsHeapSizeLimit,
+  };
 }
 
 export const RamMeter = memo(function RamMeter() {
@@ -31,7 +34,6 @@ export const RamMeter = memo(function RamMeter() {
   const limit_mb = Math.round(limit / 1048576);
   const percent = Math.min(100, Math.round((used / limit) * 100));
   const over = used > limit;
-  const where = worker_memory !== null ? "worker" : "app";
 
   return (
     <div className="ram-meter">
@@ -42,7 +44,7 @@ export const RamMeter = memo(function RamMeter() {
         />
       </div>
       <span className="ram-meter-label">
-        RAM {used_mb} / {limit_mb} MB · {where}
+        RAM {used_mb} / {limit_mb} MB
       </span>
     </div>
   );

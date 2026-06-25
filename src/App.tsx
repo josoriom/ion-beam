@@ -14,7 +14,7 @@ import { ImageView } from "./components/ImageView";
 import { ImageTargets } from "./components/ImageTargets";
 import { RamMeter } from "./components/RamMeter";
 import { useAppDispatch, useAppState } from "./context/context";
-import { peak_options, select_view } from "./context/reducer";
+import { active_path, peak_options, select_view } from "./context/reducer";
 import "./App.css";
 
 function App() {
@@ -58,7 +58,7 @@ function App() {
         </div>
         {state.samples_open && (
           <div className="sidebar-body">
-            <PathInput path={state.path} />
+            <PathInput path={active_path(state)} />
             {view.samples_failed && (
               <p className="banner banner-error">Could not list samples: {view.samples_message}</p>
             )}

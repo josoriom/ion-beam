@@ -7,7 +7,14 @@ import { get_peaks } from "../ms/peaks";
 import { request_image, type ImageProgress } from "../ms/image_client";
 import { image_key, image_level, target_tolerance } from "../data/image_targets";
 import { DispatchContext, StateContext } from "./context";
-import { initial_state, peak_options, read_error, reducer, select_view } from "./reducer";
+import {
+  active_path,
+  initial_state,
+  peak_options,
+  read_error,
+  reducer,
+  select_view,
+} from "./reducer";
 
 interface AppProviderProps {
   children: ReactNode;
@@ -19,7 +26,6 @@ export function AppProvider({ children }: AppProviderProps) {
   const { mode, selected_mz, images, samples } = state;
 
   const {
-    path,
     rt_from,
     rt_to,
     ppm,
@@ -33,6 +39,7 @@ export function AppProvider({ children }: AppProviderProps) {
     auto_baseline,
     allow_overlap,
   } = state;
+  const path = active_path(state);
   const { url, file, mz, mz_valid, eic_ready, points } = select_view(state);
 
   useEffect(() => {

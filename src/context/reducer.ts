@@ -4,7 +4,7 @@ import type { Point } from "../ms/eic";
 import type { Peak } from "../ms/peaks";
 import type { RenderedImage } from "../ms/ion_image";
 import type { Compound } from "../data/compounds";
-import { default_mz, default_path, time_range } from "../data/targets";
+import { default_mz, default_path, imaging_path, time_range } from "../data/targets";
 import {
   default_image_targets,
   image_key,
@@ -59,6 +59,7 @@ export interface State {
   images: Record<string, ImageOutcome>;
   image_progress: ImageProgress | null;
   path: string;
+  image_path: string;
   picked_sample: string | null;
   mz_text: string;
   picked_label: string | null;
@@ -94,6 +95,7 @@ export const initial_state: State = {
   images: {},
   image_progress: null,
   path: default_path,
+  image_path: imaging_path,
   picked_sample: null,
   mz_text: String(default_mz),
   picked_label: null,
@@ -220,7 +222,8 @@ export function reducer(state: State, action: Action): State {
         draft.image_progress = null;
         break;
       case "set_path":
-        draft.path = action.path;
+        if (draft.mode === "imaging") draft.image_path = action.path;
+        else draft.path = action.path;
         break;
       case "pick_sample":
         draft.picked_sample = action.name;
@@ -346,6 +349,10 @@ export function with_slash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
 }
 
+export function active_path(state: State): string {
+  return state.mode === "imaging" ? state.image_path : state.path;
+}
+
 const empty_names: string[] = [];
 const empty_points: Point[] = [];
 const empty_peaks: Peak[] = [];
@@ -373,7 +380,8 @@ export interface View {
 }
 
 export function select_view(state: State): View {
-  const samples_at_path = state.samples?.path === state.path;
+  const path = active_path(state);
+  const samples_at_path = state.samples?.path === path;
   const samples_ready = Boolean(samples_at_path && state.samples?.status === "ok");
   const samples_failed = Boolean(samples_at_path && state.samples?.status === "error");
   const samples_loading = !samples_ready && !samples_failed;
@@ -383,7 +391,7 @@ export function select_view(state: State): View {
     state.picked_sample && samples.includes(state.picked_sample)
       ? state.picked_sample
       : (samples[0] ?? null);
-  const url = active_sample ? with_slash(state.path) + active_sample : null;
+  const url = active_sample ? with_slash(path) + active_sample : null;
 
   const file_at_url = state.file?.url === url;
   const file_ready = Boolean(file_at_url && state.file?.status === "ok");
