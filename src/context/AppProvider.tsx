@@ -50,7 +50,8 @@ export function AppProvider({ children }: AppProviderProps) {
         if (active) dispatch({ type: "samplesLoaded", path, names });
       })
       .catch((error: unknown) => {
-        if (active) dispatch({ type: "samplesFailed", path, message: readError(error) });
+        if (active)
+          dispatch({ type: "samplesFailed", path, message: readError(error) });
       });
     return () => {
       active = false;
@@ -71,7 +72,8 @@ export function AppProvider({ children }: AppProviderProps) {
         dispatch({ type: "fileOpened", url, file });
       })
       .catch((error: unknown) => {
-        if (active) dispatch({ type: "fileFailed", url, message: readError(error) });
+        if (active)
+          dispatch({ type: "fileFailed", url, message: readError(error) });
       });
     return () => {
       active = false;
@@ -88,7 +90,8 @@ export function AppProvider({ children }: AppProviderProps) {
         if (active) dispatch({ type: "eicReady", key, points: result.points });
       })
       .catch((error: unknown) => {
-        if (active) dispatch({ type: "eicFailed", key, message: readError(error) });
+        if (active)
+          dispatch({ type: "eicFailed", key, message: readError(error) });
       });
     return () => {
       active = false;
@@ -133,7 +136,9 @@ export function AppProvider({ children }: AppProviderProps) {
     const onProgress = (progress: ImageProgress) => {
       if (!active) return;
       const percent =
-        progress.total > 0 ? Math.floor((progress.fetched / progress.total) * 100) : 0;
+        progress.total > 0
+          ? Math.floor((progress.fetched / progress.total) * 100)
+          : 0;
       if (percent === lastPercent) return;
       lastPercent = percent;
       dispatch({
@@ -143,13 +148,25 @@ export function AppProvider({ children }: AppProviderProps) {
         memory: progress.memory,
       });
     };
-    requestImage(url, selectedMz, targetTolerance(selectedMz), imageLevel, onProgress)
+    requestImage(
+      url,
+      selectedMz,
+      targetTolerance(selectedMz),
+      imageLevel,
+      onProgress,
+    )
       .then((image) => {
-        if (active) dispatch({ type: "imageReady", url, mz: selectedMz, image });
+        if (active)
+          dispatch({ type: "imageReady", url, mz: selectedMz, image });
       })
       .catch((error: unknown) => {
         if (active)
-          dispatch({ type: "imageFailed", url, mz: selectedMz, message: readError(error) });
+          dispatch({
+            type: "imageFailed",
+            url,
+            mz: selectedMz,
+            message: readError(error),
+          });
       });
     return () => {
       active = false;
@@ -158,7 +175,9 @@ export function AppProvider({ children }: AppProviderProps) {
 
   return (
     <StateContext.Provider value={state}>
-      <DispatchContext.Provider value={dispatch}>{children}</DispatchContext.Provider>
+      <DispatchContext.Provider value={dispatch}>
+        {children}
+      </DispatchContext.Provider>
     </StateContext.Provider>
   );
 }

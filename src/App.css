@@ -331,6 +331,68 @@ body.resizing .resize-handle::after {
   border-color: var(--primary);
 }
 
+.sample-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.sample-filter {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  background: var(--panel);
+  padding: 8px;
+  margin: -8px -8px 4px;
+}
+
+.sample-filter-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.sample-filter-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.case-button {
+  flex-shrink: 0;
+  width: 32px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-soft);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.case-button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.case-button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 .sample-list,
 .compound-list {
   list-style: none;
