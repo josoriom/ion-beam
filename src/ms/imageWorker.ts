@@ -1,4 +1,4 @@
-import { init, parseIon, getIonImage, type SampleFile } from "msutils";
+import { init, parseIon, getIonImage, type SampleFile } from "quantion";
 import { renderIonImage } from "./ionImage";
 import { toFetchable } from "./remote";
 import { highQuantile, lowQuantile } from "../data/imageTargets";
@@ -35,13 +35,22 @@ async function run(job: Job): Promise<void> {
       tolerance: job.tolerance,
       level: job.level,
       onProgress: (fetched, total, heldBytes) => {
-        self.postMessage({ id: job.id, type: "progress", fetched, total, memory: heldBytes });
+        self.postMessage({
+          id: job.id,
+          type: "progress",
+          fetched,
+          total,
+          memory: heldBytes,
+        });
       },
     });
     const rendered = renderIonImage(image, lowQuantile, highQuantile);
-    self.postMessage({ id: job.id, type: "done", image: rendered }, {
-      transfer: [rendered.rgba.buffer],
-    });
+    self.postMessage(
+      { id: job.id, type: "done", image: rendered },
+      {
+        transfer: [rendered.rgba.buffer],
+      },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     self.postMessage({ id: job.id, type: "error", message });

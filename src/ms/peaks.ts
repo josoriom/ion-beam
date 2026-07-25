@@ -1,4 +1,4 @@
-import { findPeaks, type Peak, type PeakOptions } from "msutils";
+import { findPeaks, type Peak, type PeakOptions } from "quantion";
 import type { Point } from "./eic";
 
 export type { Peak };

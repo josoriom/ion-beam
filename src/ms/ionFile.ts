@@ -1,5 +1,5 @@
-import { init, parseIon, type SampleFile } from 'msutils';
-import { toFetchable } from './remote';
+import { init, parseIon, type SampleFile } from "quantion";
+import { toFetchable } from "./remote";
 
 const cacheSize = 256 * 1024 * 1024;
 

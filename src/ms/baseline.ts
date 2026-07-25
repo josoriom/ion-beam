@@ -1,4 +1,4 @@
-import { calculateBaseline } from "msutils";
+import { calculateBaseline } from "quantion";
 import type { Point } from "./eic";
 
 export function getBaseline(points: Point[]): Point[] {

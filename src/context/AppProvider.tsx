@@ -1,5 +1,5 @@
 import { useEffect, useReducer, type ReactNode } from "react";
-import type { SampleFile } from "msutils";
+import type { SampleFile } from "quantion";
 import { getSamples } from "../ms/listSamples";
 import { openIonFile } from "../ms/ionFile";
 import { getEic } from "../ms/eic";

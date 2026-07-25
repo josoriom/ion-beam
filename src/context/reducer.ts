@@ -1,10 +1,15 @@
 import { produce } from "immer";
-import type { PeakOptions, SampleFile } from "msutils";
+import type { PeakOptions, SampleFile } from "quantion";
 import type { Point } from "../ms/eic";
 import type { Peak } from "../ms/peaks";
 import type { RenderedImage } from "../ms/ionImage";
 import type { Compound } from "../data/compounds";
-import { defaultMz, defaultPath, imagingPath, timeRange } from "../data/targets";
+import {
+  defaultMz,
+  defaultPath,
+  imagingPath,
+  timeRange,
+} from "../data/targets";
 import {
   defaultImageTargets,
   imageKey,
@@ -130,7 +135,12 @@ export type Action =
   | { type: "addImageTarget"; mz: number }
   | { type: "removeImageTarget"; mz: number }
   | { type: "selectImageTarget"; mz: number }
-  | { type: "imageProgress"; fetched: number; total: number; memory: number | null }
+  | {
+      type: "imageProgress";
+      fetched: number;
+      total: number;
+      memory: number | null;
+    }
   | { type: "imageReady"; url: string; mz: number; image: RenderedImage }
   | { type: "imageFailed"; url: string; mz: number; message: string }
   | { type: "setPath"; path: string }
@@ -182,7 +192,9 @@ export function reducer(state: State, action: Action): State {
         draft.samples = null;
         break;
       case "addImageTarget": {
-        const exists = draft.imageTargets.some((target) => target.mz === action.mz);
+        const exists = draft.imageTargets.some(
+          (target) => target.mz === action.mz,
+        );
         if (!exists) {
           draft.imageTargets.push({ id: targetId(action.mz), mz: action.mz });
         }
@@ -293,22 +305,42 @@ export function reducer(state: State, action: Action): State {
         draft.metabolitesWidth = clampPanelWidth(action.value);
         break;
       case "samplesLoaded":
-        draft.samples = { path: action.path, status: "ok", names: action.names };
+        draft.samples = {
+          path: action.path,
+          status: "ok",
+          names: action.names,
+        };
         break;
       case "samplesFailed":
-        draft.samples = { path: action.path, status: "error", message: action.message };
+        draft.samples = {
+          path: action.path,
+          status: "error",
+          message: action.message,
+        };
         break;
       case "fileOpened":
         draft.file = { url: action.url, status: "ok", file: action.file };
         break;
       case "fileFailed":
-        draft.file = { url: action.url, status: "error", message: action.message };
+        draft.file = {
+          url: action.url,
+          status: "error",
+          message: action.message,
+        };
         break;
       case "eicReady":
-        draft.outcome = { key: action.key, status: "ok", points: action.points };
+        draft.outcome = {
+          key: action.key,
+          status: "ok",
+          points: action.points,
+        };
         break;
       case "eicFailed":
-        draft.outcome = { key: action.key, status: "error", message: action.message };
+        draft.outcome = {
+          key: action.key,
+          status: "error",
+          message: action.message,
+        };
         break;
       case "peaksFound":
         draft.peaks = { key: action.key, list: action.list };
@@ -383,9 +415,13 @@ export function selectView(state: State): View {
   const path = activePath(state);
   const samplesAtPath = state.samples?.path === path;
   const samplesReady = Boolean(samplesAtPath && state.samples?.status === "ok");
-  const samplesFailed = Boolean(samplesAtPath && state.samples?.status === "error");
+  const samplesFailed = Boolean(
+    samplesAtPath && state.samples?.status === "error",
+  );
   const samplesLoading = !samplesReady && !samplesFailed;
-  const samples = samplesReady ? (state.samples?.names ?? emptyNames) : emptyNames;
+  const samples = samplesReady
+    ? (state.samples?.names ?? emptyNames)
+    : emptyNames;
 
   const activeSample =
     state.pickedSample && samples.includes(state.pickedSample)
@@ -402,7 +438,9 @@ export function selectView(state: State): View {
   const mzValid = Number.isFinite(mz) && mz > 0;
 
   const result =
-    state.outcome && state.outcome.key === `${url}|${mz}` ? state.outcome : null;
+    state.outcome && state.outcome.key === `${url}|${mz}`
+      ? state.outcome
+      : null;
   const eicReady = Boolean(file && mzValid && result?.status === "ok");
   const eicFailed = Boolean(file && result?.status === "error");
   const eicLoading = Boolean(file && mzValid && !eicReady && !eicFailed);

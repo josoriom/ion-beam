@@ -1,4 +1,4 @@
-import type { IonImage } from "msutils";
+import type { IonImage } from "quantion";
 
 export interface RenderedImage {
   width: number;
@@ -14,7 +14,9 @@ export function quantile(sorted: number[], q: number): number {
   const base = Math.floor(pos);
   const rest = pos - base;
   const next = sorted[base + 1];
-  return next === undefined ? sorted[base] : sorted[base] + rest * (next - sorted[base]);
+  return next === undefined
+    ? sorted[base]
+    : sorted[base] + rest * (next - sorted[base]);
 }
 
 function clampUnit(value: number): number {

@@ -1,4 +1,4 @@
-import { calculateEic, type SampleFile } from 'msutils';
+import { calculateEic, type SampleFile } from "quantion";
 
 export interface Point {
   x: number;
