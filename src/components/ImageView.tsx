@@ -48,7 +48,9 @@ export const ImageView = memo(function ImageView() {
           {outcome?.status === "ok" && !hasPixels && (
             <p className="image-note">No pixels for this m/z</p>
           )}
-          {!outcome && <ComputeProgress key={`${fileName}|${selectedMz}`} />}
+          {(!outcome || outcome.status === "pending") && (
+            <ComputeProgress key={`${fileName}|${selectedMz}`} />
+          )}
         </div>
 
         <footer className="image-stage-foot">

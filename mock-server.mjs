@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { join, basename } from "node:path";
 
 const port = Number(process.env.MOCK_PORT) || 9000;
-const data_dir = process.argv[2] ?? "/Users/josoriom/github/josoriom/streaming/data";
+const data_dir = "/Users/josorio/Documents/Projects/quantion/tripletof6600";
 
 const cors_headers = {
   "Access-Control-Allow-Origin": "*",
@@ -46,7 +46,9 @@ function send_file(req, res, name) {
       "Content-Type": "application/octet-stream",
     });
     if (req.method === "HEAD") return res.end();
-    return createReadStream(path).pipe(res);
+    const stream = createReadStream(path);
+    stream.on("error", () => res.destroy());
+    return stream.pipe(res);
   }
 
   const length = range.end - range.start + 1;
@@ -58,7 +60,9 @@ function send_file(req, res, name) {
     "Content-Type": "application/octet-stream",
   });
   if (req.method === "HEAD") return res.end();
-  createReadStream(path, { start: range.start, end: range.end }).pipe(res);
+  const stream = createReadStream(path, { start: range.start, end: range.end });
+  stream.on("error", () => res.destroy());
+  stream.pipe(res);
 }
 
 createServer((req, res) => {
@@ -68,15 +72,22 @@ createServer((req, res) => {
   }
 
   const url = new URL(req.url, `http://localhost:${port}`);
-  const name = decodeURIComponent(url.pathname.slice(1));
+  let name;
+  try {
+    name = decodeURIComponent(url.pathname.slice(1));
+  } catch (error) {
+    res.writeHead(400, { ...cors_headers, "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: String(error?.message ?? error) }));
+  }
 
   if (name.endsWith(".ion")) {
     return send_file(req, res, name);
   }
 
   try {
+    const body = JSON.stringify(list_files());
     res.writeHead(200, { ...cors_headers, "Content-Type": "application/json" });
-    res.end(JSON.stringify(list_files()));
+    res.end(body);
   } catch (error) {
     res.writeHead(500, { ...cors_headers, "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: String(error?.message ?? error) }));

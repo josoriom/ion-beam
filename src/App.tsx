@@ -13,6 +13,7 @@ import { ModeSwitch } from "./components/ModeSwitch";
 import { ImageView } from "./components/ImageView";
 import { ImageTargets } from "./components/ImageTargets";
 import { RamMeter } from "./components/RamMeter";
+import { InspectPanel } from "./components/InspectPanel";
 import { useAppDispatch, useAppState } from "./context/context";
 import { activePath, peakOptions, selectView } from "./context/reducer";
 import "./App.css";
@@ -91,6 +92,14 @@ function App() {
             </p>
           </div>
           <ModeSwitch />
+          <button
+            type="button"
+            className={state.inspectOpen ? "inspect-button active" : "inspect-button"}
+            title="Show downloaded bytes"
+            onClick={() => dispatch({ type: "toggleInspect" })}
+          >
+            Inspect
+          </button>
           {!imaging && !state.autoPeakPicking && (
             <button
               type="button"
@@ -107,7 +116,9 @@ function App() {
           {imaging && <ImageView />}
           {!imaging && view.activeSample && (
             <section className="plot-card">
-              {!view.mzValid && <p className="banner">Enter a valid m/z</p>}
+              {view.mz === null && (
+                <p className="banner">Pick a metabolite or enter an m/z to load blocks</p>
+              )}
               {view.fileFailed && (
                 <p className="banner banner-error">Could not read the file: {view.fileMessage}</p>
               )}
@@ -177,6 +188,7 @@ function App() {
       </aside>
 
       <RamMeter />
+      {state.inspectOpen && <InspectPanel />}
     </div>
   );
 }

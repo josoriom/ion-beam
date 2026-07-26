@@ -1,10 +1,11 @@
-import { useEffect, useReducer, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, type ReactNode } from "react";
 import type { SampleFile } from "quantion";
 import { getSamples } from "../ms/listSamples";
 import { openIonFile } from "../ms/ionFile";
 import { getEic } from "../ms/eic";
 import { getPeaks } from "../ms/peaks";
 import { requestImage, type ImageProgress } from "../ms/imageClient";
+import { trackSample } from "../ms/traffic";
 import { imageKey, imageLevel, targetTolerance } from "../data/imageTargets";
 import { DispatchContext, StateContext } from "./context";
 import {
@@ -18,6 +19,29 @@ import {
 
 interface AppProviderProps {
   children: ReactNode;
+}
+
+function trackEicTask(
+  tasks: Map<SampleFile, Set<Promise<void>>>,
+  file: SampleFile,
+  task: Promise<void>,
+) {
+  const running = tasks.get(file) ?? new Set<Promise<void>>();
+  running.add(task);
+  tasks.set(file, running);
+  task.finally(() => {
+    running.delete(task);
+    if (running.size === 0) tasks.delete(file);
+  });
+}
+
+function waitForEicTasks(
+  tasks: Map<SampleFile, Set<Promise<void>>>,
+  file: SampleFile,
+): Promise<void> {
+  const running = tasks.get(file);
+  if (!running || running.size === 0) return Promise.resolve();
+  return Promise.allSettled([...running]).then(() => undefined);
 }
 
 export function AppProvider({ children }: AppProviderProps) {
@@ -40,7 +64,14 @@ export function AppProvider({ children }: AppProviderProps) {
     allowOverlap,
   } = state;
   const path = activePath(state);
-  const { url, file, mz, mzValid, eicReady, points } = selectView(state);
+  const { url, file, mz, eicReady, points } = selectView(state);
+
+  const eicTasksByFile = useRef(new Map<SampleFile, Set<Promise<void>>>());
+  const latestImages = useRef(images);
+
+  useEffect(() => {
+    latestImages.current = images;
+  });
 
   useEffect(() => {
     if (samples && samples.path === path) return undefined;
@@ -59,9 +90,14 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [path, samples]);
 
   useEffect(() => {
+    trackSample(url);
+  }, [url]);
+
+  useEffect(() => {
     if (mode !== "eic" || !url) return undefined;
     let active = true;
     let opened: SampleFile | null = null;
+    const tasks = eicTasksByFile.current;
     openIonFile(url)
       .then((file) => {
         if (!active) {
@@ -77,15 +113,20 @@ export function AppProvider({ children }: AppProviderProps) {
       });
     return () => {
       active = false;
-      opened?.dispose?.();
+      const target = opened;
+      if (!target) return;
+      dispatch({ type: "fileClosed", url });
+      waitForEicTasks(tasks, target).finally(() => {
+        target.dispose?.();
+      });
     };
   }, [mode, url]);
 
   useEffect(() => {
-    if (!file || !mzValid) return undefined;
+    if (!file || mz === null) return undefined;
     const key = `${url}|${mz}`;
     let active = true;
-    getEic(file, mz, { from: rtFrom, to: rtTo }, ppm, mzTol)
+    const task = getEic(file, mz, { from: rtFrom, to: rtTo }, ppm, mzTol)
       .then((result) => {
         if (active) dispatch({ type: "eicReady", key, points: result.points });
       })
@@ -93,10 +134,11 @@ export function AppProvider({ children }: AppProviderProps) {
         if (active)
           dispatch({ type: "eicFailed", key, message: readError(error) });
       });
+    trackEicTask(eicTasksByFile.current, file, task);
     return () => {
       active = false;
     };
-  }, [file, mz, mzValid, url, rtFrom, rtTo, ppm, mzTol]);
+  }, [file, mz, url, rtFrom, rtTo, ppm, mzTol]);
 
   useEffect(() => {
     if (!autoPeakPicking || !eicReady) return;
@@ -129,7 +171,9 @@ export function AppProvider({ children }: AppProviderProps) {
   useEffect(() => {
     if (mode !== "imaging" || !url || selectedMz === null) return undefined;
     const key = imageKey(url, selectedMz);
-    if (images[key]) return undefined;
+    if (latestImages.current[key]) return undefined;
+
+    dispatch({ type: "imageRequested", url, mz: selectedMz });
 
     let active = true;
     let lastPercent = -1;
@@ -156,22 +200,20 @@ export function AppProvider({ children }: AppProviderProps) {
       onProgress,
     )
       .then((image) => {
-        if (active)
-          dispatch({ type: "imageReady", url, mz: selectedMz, image });
+        dispatch({ type: "imageReady", url, mz: selectedMz, image });
       })
       .catch((error: unknown) => {
-        if (active)
-          dispatch({
-            type: "imageFailed",
-            url,
-            mz: selectedMz,
-            message: readError(error),
-          });
+        dispatch({
+          type: "imageFailed",
+          url,
+          mz: selectedMz,
+          message: readError(error),
+        });
       });
     return () => {
       active = false;
     };
-  }, [mode, url, selectedMz, images]);
+  }, [mode, url, selectedMz]);
 
   return (
     <StateContext.Provider value={state}>

@@ -46,7 +46,7 @@ export interface Peaks {
 }
 
 export interface ImageOutcome {
-  status: "ok" | "error";
+  status: "ok" | "error" | "pending";
   image?: RenderedImage;
   message?: string;
 }
@@ -67,10 +67,12 @@ export interface State {
   imagePath: string;
   pickedSample: string | null;
   mzText: string;
+  pickedMz: number | null;
   pickedLabel: string | null;
   targetRt: number | null;
   samplesOpen: boolean;
   metabolitesOpen: boolean;
+  inspectOpen: boolean;
   samplesWidth: number;
   metabolitesWidth: number;
   minIntensity: number;
@@ -103,10 +105,12 @@ export const initialState: State = {
   imagePath: imagingPath,
   pickedSample: null,
   mzText: String(defaultMz),
+  pickedMz: null,
   pickedLabel: null,
   targetRt: null,
   samplesOpen: true,
   metabolitesOpen: true,
+  inspectOpen: false,
   samplesWidth: 300,
   metabolitesWidth: 320,
   minIntensity: 500,
@@ -141,6 +145,7 @@ export type Action =
       total: number;
       memory: number | null;
     }
+  | { type: "imageRequested"; url: string; mz: number }
   | { type: "imageReady"; url: string; mz: number; image: RenderedImage }
   | { type: "imageFailed"; url: string; mz: number; message: string }
   | { type: "setPath"; path: string }
@@ -149,6 +154,7 @@ export type Action =
   | { type: "pickCompound"; compound: Compound }
   | { type: "toggleSamples" }
   | { type: "toggleMetabolites" }
+  | { type: "toggleInspect" }
   | { type: "setSamplesWidth"; value: number }
   | { type: "setMetabolitesWidth"; value: number }
   | { type: "setMinIntensity"; value: number }
@@ -169,6 +175,7 @@ export type Action =
   | { type: "samplesFailed"; path: string; message: string }
   | { type: "fileOpened"; url: string; file: SampleFile }
   | { type: "fileFailed"; url: string; message: string }
+  | { type: "fileClosed"; url: string }
   | { type: "eicReady"; key: string; points: Point[] }
   | { type: "eicFailed"; key: string; message: string }
   | { type: "peaksFound"; key: string; list: Peak[] };
@@ -219,6 +226,9 @@ export function reducer(state: State, action: Action): State {
           memory: action.memory,
         };
         break;
+      case "imageRequested":
+        draft.images[imageKey(action.url, action.mz)] = { status: "pending" };
+        break;
       case "imageReady":
         draft.images[imageKey(action.url, action.mz)] = {
           status: "ok",
@@ -236,17 +246,25 @@ export function reducer(state: State, action: Action): State {
       case "setPath":
         if (draft.mode === "imaging") draft.imagePath = action.path;
         else draft.path = action.path;
+        draft.pickedMz = null;
+        draft.pickedLabel = null;
+        draft.targetRt = null;
         break;
       case "pickSample":
         draft.pickedSample = action.name;
+        draft.pickedMz = null;
+        draft.pickedLabel = null;
+        draft.targetRt = null;
         break;
       case "changeMz":
         draft.mzText = action.value;
+        draft.pickedMz = readMz(action.value);
         draft.pickedLabel = null;
         draft.targetRt = null;
         break;
       case "pickCompound":
         draft.mzText = String(action.compound.mz);
+        draft.pickedMz = action.compound.mz;
         draft.pickedLabel = action.compound.label;
         draft.targetRt = action.compound.rt;
         break;
@@ -255,6 +273,9 @@ export function reducer(state: State, action: Action): State {
         break;
       case "toggleMetabolites":
         draft.metabolitesOpen = !draft.metabolitesOpen;
+        break;
+      case "toggleInspect":
+        draft.inspectOpen = !draft.inspectOpen;
         break;
       case "setMinIntensity":
         draft.minIntensity = action.value;
@@ -328,6 +349,9 @@ export function reducer(state: State, action: Action): State {
           message: action.message,
         };
         break;
+      case "fileClosed":
+        if (draft.file?.url === action.url) draft.file = null;
+        break;
       case "eicReady":
         draft.outcome = {
           key: action.key,
@@ -372,6 +396,11 @@ export function peakOptions(settings: PeakSettings): PeakOptions {
   };
 }
 
+export function readMz(value: string): number | null {
+  const mz = Number(value);
+  return Number.isFinite(mz) && mz > 0 ? mz : null;
+}
+
 export function readError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -400,8 +429,7 @@ export interface View {
   file: SampleFile | null;
   fileFailed: boolean;
   fileMessage?: string;
-  mz: number;
-  mzValid: boolean;
+  mz: number | null;
   eicReady: boolean;
   eicFailed: boolean;
   eicLoading: boolean;
@@ -434,16 +462,14 @@ export function selectView(state: State): View {
   const fileFailed = Boolean(fileAtUrl && state.file?.status === "error");
   const file = fileReady ? (state.file?.file ?? null) : null;
 
-  const mz = Number(state.mzText);
-  const mzValid = Number.isFinite(mz) && mz > 0;
-
+  const mz = state.pickedMz;
   const result =
     state.outcome && state.outcome.key === `${url}|${mz}`
       ? state.outcome
       : null;
-  const eicReady = Boolean(file && mzValid && result?.status === "ok");
-  const eicFailed = Boolean(file && result?.status === "error");
-  const eicLoading = Boolean(file && mzValid && !eicReady && !eicFailed);
+  const eicReady = Boolean(file && mz !== null && result?.status === "ok");
+  const eicFailed = Boolean(file && mz !== null && result?.status === "error");
+  const eicLoading = Boolean(file && mz !== null && !eicReady && !eicFailed);
   const points = result?.points ?? emptyPoints;
 
   const peaksReady = Boolean(state.peaks && state.peaks.key === `${url}|${mz}`);
@@ -461,7 +487,6 @@ export function selectView(state: State): View {
     fileFailed,
     fileMessage: state.file?.message,
     mz,
-    mzValid,
     eicReady,
     eicFailed,
     eicLoading,

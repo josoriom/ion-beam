@@ -2,6 +2,7 @@ import { init, parseIon, getIonImage, type SampleFile } from "quantion";
 import { renderIonImage } from "./ionImage";
 import { toFetchable } from "./remote";
 import { highQuantile, lowQuantile } from "../data/imageTargets";
+import { trackSample, subscribe, getTraffic } from "./traffic";
 
 const cacheSize = 256 * 1024 * 1024;
 
@@ -17,12 +18,21 @@ let openUrl: string | null = null;
 let openFile: SampleFile | null = null;
 let chain: Promise<void> = Promise.resolve();
 
+subscribe(() => {
+  self.postMessage({ type: "traffic", traffic: getTraffic() });
+});
+
 async function open(url: string): Promise<SampleFile> {
   if (url !== openUrl) {
-    openFile?.dispose?.();
+    const previousFile = openFile;
+    openFile = null;
+    openUrl = null;
+    previousFile?.dispose?.();
+    trackSample(url);
     await init();
     const target = new URL(toFetchable(url), self.location.origin);
-    openFile = await parseIon(target, { maxCacheSize: cacheSize });
+    const parsedFile = await parseIon(target, { maxCacheSize: cacheSize });
+    openFile = parsedFile;
     openUrl = url;
   }
   return openFile as SampleFile;
