@@ -7,6 +7,7 @@ import { getPeaks } from "../ms/peaks";
 import { requestImage, type ImageProgress } from "../ms/imageClient";
 import { trackSample } from "../ms/traffic";
 import { endQuery, resetQuery, startQuery } from "../ms/queryTimer";
+import { writePaths } from "../utilities/savedPaths";
 import { imageKey, imageLevel, targetTolerance } from "../data/imageTargets";
 import { DispatchContext, StateContext } from "./context";
 import {
@@ -48,7 +49,11 @@ function waitForEicTasks(
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const { mode, selectedMz, images, samples } = state;
+  const { mode, selectedMz, images, samples, savedPaths } = state;
+
+  useEffect(() => {
+    writePaths(savedPaths);
+  }, [savedPaths]);
 
   const {
     rtFrom,
@@ -76,6 +81,10 @@ export function AppProvider({ children }: AppProviderProps) {
 
   useEffect(() => {
     if (samples && samples.path === path) return undefined;
+    if (path.trim().length === 0) {
+      dispatch({ type: "samplesLoaded", path, names: [] });
+      return undefined;
+    }
     let active = true;
     getSamples(path)
       .then((names) => {

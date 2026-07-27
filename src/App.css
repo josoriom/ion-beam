@@ -288,6 +288,15 @@ body.resizing .resize-handle::after {
   font-size: 12px;
   color: var(--text-soft);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-body {
@@ -300,22 +309,7 @@ body.resizing .resize-handle::after {
   gap: 16px;
 }
 
-.path-input {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.path-input-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-soft);
-}
-
 .path-input input {
-  width: 100%;
   box-sizing: border-box;
   padding: 6px 8px;
   font-family: var(--mono);
@@ -977,40 +971,13 @@ body.resizing .resize-handle::after {
   color: var(--danger);
 }
 
-.inspect-button {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-soft);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s,
-    border-color 0.12s;
-}
-
-.inspect-button:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.inspect-button.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
 
 
 
 .inspect-panel {
   position: fixed;
   left: 12px;
-  bottom: 12px;
+  bottom: 56px;
   z-index: 80;
   display: flex;
   flex-direction: column;
@@ -1312,4 +1279,139 @@ body.dragging {
 
 .inspect-foot-value.busy {
   color: var(--primary);
+}
+
+.content-path {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.content-modes {
+  display: flex;
+}
+
+.inspect-fab {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 60;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.inspect-fab:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.inspect-fab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.path-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.path-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.path-input-label {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.path-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-button {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-soft);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.path-button:hover:not(:disabled) {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.path-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.path-saved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.path-saved-label {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.path-select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.path-select:focus {
+  outline: none;
+  border-color: var(--primary);
 }

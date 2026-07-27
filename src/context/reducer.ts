@@ -10,6 +10,8 @@ import {
   imagingPath,
   timeRange,
 } from "../data/targets";
+import { readPaths } from "../utilities/savedPaths";
+import { toRawFolder } from "../ms/github";
 import {
   defaultImageTargets,
   imageKey,
@@ -65,6 +67,7 @@ export interface State {
   imageProgress: ImageProgress | null;
   path: string;
   imagePath: string;
+  savedPaths: string[];
   pickedSample: string | null;
   mzText: string;
   pickedMz: number | null;
@@ -103,6 +106,7 @@ export const initialState: State = {
   imageProgress: null,
   path: defaultPath,
   imagePath: imagingPath,
+  savedPaths: readPaths([defaultPath]),
   pickedSample: null,
   mzText: String(defaultMz),
   pickedMz: null,
@@ -149,6 +153,8 @@ export type Action =
   | { type: "imageReady"; url: string; mz: number; image: RenderedImage }
   | { type: "imageFailed"; url: string; mz: number; message: string }
   | { type: "setPath"; path: string }
+  | { type: "addPath"; path: string }
+  | { type: "removePath"; path: string }
   | { type: "pickSample"; name: string }
   | { type: "changeMz"; value: string }
   | { type: "pickCompound"; compound: Compound }
@@ -250,6 +256,23 @@ export function reducer(state: State, action: Action): State {
         draft.pickedLabel = null;
         draft.targetRt = null;
         break;
+      case "addPath": {
+        const path = action.path.trim();
+        if (path.length > 0 && !draft.savedPaths.includes(path)) {
+          draft.savedPaths.push(path);
+        }
+        break;
+      }
+      case "removePath": {
+        draft.savedPaths = draft.savedPaths.filter((item) => item !== action.path);
+        if (draft.mode === "imaging") draft.imagePath = "";
+        else draft.path = "";
+        draft.pickedSample = null;
+        draft.pickedMz = null;
+        draft.pickedLabel = null;
+        draft.targetRt = null;
+        break;
+      }
       case "pickSample":
         draft.pickedSample = action.name;
         draft.pickedMz = null;
@@ -455,7 +478,7 @@ export function selectView(state: State): View {
     state.pickedSample && samples.includes(state.pickedSample)
       ? state.pickedSample
       : (samples[0] ?? null);
-  const url = activeSample ? withSlash(path) + activeSample : null;
+  const url = activeSample ? withSlash(toRawFolder(path)) + activeSample : null;
 
   const fileAtUrl = state.file?.url === url;
   const fileReady = Boolean(fileAtUrl && state.file?.status === "ok");

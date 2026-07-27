@@ -59,7 +59,6 @@ function App() {
         </div>
         {state.samplesOpen && (
           <div className="sidebar-body">
-            <PathInput path={activePath(state)} />
             {view.samplesFailed && (
               <p className="banner banner-error">Could not list samples: {view.samplesMessage}</p>
             )}
@@ -83,7 +82,7 @@ function App() {
             <h1 className="content-title">
               {imaging ? "Ion image" : "Extracted ion chromatogram"}
             </h1>
-            <p className="content-sub">
+            <p className="content-sub" title={view.activeSample ?? ""}>
               {imaging
                 ? `${view.activeSample ?? "Pick a file"} · ${state.imageTargets.length} targets`
                 : view.activeSample
@@ -91,15 +90,6 @@ function App() {
                   : "Pick a sample"}
             </p>
           </div>
-          <ModeSwitch />
-          <button
-            type="button"
-            className={state.inspectOpen ? "inspect-button active" : "inspect-button"}
-            title="Show downloaded bytes"
-            onClick={() => dispatch({ type: "toggleInspect" })}
-          >
-            Inspect
-          </button>
           {!imaging && !state.autoPeakPicking && (
             <button
               type="button"
@@ -111,6 +101,13 @@ function App() {
             </button>
           )}
         </header>
+
+        <div className="content-path">
+          <PathInput path={activePath(state)} saved={state.savedPaths} />
+          <div className="content-modes">
+            <ModeSwitch />
+          </div>
+        </div>
 
         <div className="content-body">
           {imaging && <ImageView />}
@@ -141,6 +138,7 @@ function App() {
 
           {!imaging && view.peaksReady && <PeakTable peaks={view.peaks} />}
         </div>
+
       </main>
 
       {state.metabolitesOpen && (
@@ -188,6 +186,14 @@ function App() {
       </aside>
 
       <RamMeter />
+      <button
+        type="button"
+        className={state.inspectOpen ? "inspect-fab active" : "inspect-fab"}
+        title="Show downloaded bytes"
+        onClick={() => dispatch({ type: "toggleInspect" })}
+      >
+        Inspect
+      </button>
       {state.inspectOpen && <InspectPanel />}
     </div>
   );
