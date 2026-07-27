@@ -20,6 +20,10 @@ export function formatExact(value: number): string {
   return `${formatCount(value)} B`;
 }
 
+export function formatSeconds(ms: number): string {
+  return `${(ms / 1000).toFixed(3)} s`;
+}
+
 export function formatPercent(part: number, whole: number): string {
   if (whole <= 0) return "0%";
   const percent = (part / whole) * 100;

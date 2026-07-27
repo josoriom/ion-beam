@@ -1,7 +1,8 @@
-import { Fragment, memo, useEffect, useSyncExternalStore } from "react";
+import { Fragment, memo, useEffect, useState, useSyncExternalStore } from "react";
 import { getTraffic, subscribe, type BlockCount, type RegionTraffic } from "../ms/traffic";
+import { getQuery, subscribeQuery } from "../ms/queryTimer";
 import type { SpecInfo } from "../ms/ionLayout";
-import { formatBytes, formatCount, formatPercent } from "../utilities/format";
+import { formatBytes, formatCount, formatPercent, formatSeconds } from "../utilities/format";
 import { useDrag } from "../utilities/useDrag";
 import { useAppDispatch } from "../context/context";
 
@@ -102,9 +103,35 @@ export const InspectPanel = memo(function InspectPanel() {
           </section>
         )}
       </div>
+
+      <QueryTime />
     </div>
   );
 });
+
+function QueryTime() {
+  const query = useSyncExternalStore(subscribeQuery, getQuery);
+  const [tick, setTick] = useState(() => performance.now());
+  const busy = query.startedAt !== null && query.endedAt === null;
+
+  useEffect(() => {
+    if (!busy) return undefined;
+    const id = window.setInterval(() => setTick(performance.now()), 50);
+    return () => window.clearInterval(id);
+  }, [busy]);
+
+  const elapsed =
+    query.startedAt === null ? 0 : Math.max(0, (query.endedAt ?? tick) - query.startedAt);
+
+  return (
+    <footer className="inspect-foot" title="Time from the click until every request and computation finished">
+      <span className="inspect-foot-label">Query time</span>
+      <span className={busy ? "inspect-foot-value busy" : "inspect-foot-value"}>
+        {formatSeconds(elapsed)}
+      </span>
+    </footer>
+  );
+}
 
 function Total({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (

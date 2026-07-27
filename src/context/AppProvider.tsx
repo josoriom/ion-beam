@@ -6,6 +6,7 @@ import { getEic } from "../ms/eic";
 import { getPeaks } from "../ms/peaks";
 import { requestImage, type ImageProgress } from "../ms/imageClient";
 import { trackSample } from "../ms/traffic";
+import { endQuery, resetQuery, startQuery } from "../ms/queryTimer";
 import { imageKey, imageLevel, targetTolerance } from "../data/imageTargets";
 import { DispatchContext, StateContext } from "./context";
 import {
@@ -91,6 +92,7 @@ export function AppProvider({ children }: AppProviderProps) {
 
   useEffect(() => {
     trackSample(url);
+    resetQuery();
   }, [url]);
 
   useEffect(() => {
@@ -98,7 +100,9 @@ export function AppProvider({ children }: AppProviderProps) {
     let active = true;
     let opened: SampleFile | null = null;
     const tasks = eicTasksByFile.current;
+    startQuery();
     openIonFile(url)
+      .finally(endQuery)
       .then((file) => {
         if (!active) {
           file.dispose?.();
@@ -126,7 +130,9 @@ export function AppProvider({ children }: AppProviderProps) {
     if (!file || mz === null) return undefined;
     const key = `${url}|${mz}`;
     let active = true;
+    startQuery();
     const task = getEic(file, mz, { from: rtFrom, to: rtTo }, ppm, mzTol)
+      .finally(endQuery)
       .then((result) => {
         if (active) dispatch({ type: "eicReady", key, points: result.points });
       })
@@ -192,6 +198,7 @@ export function AppProvider({ children }: AppProviderProps) {
         memory: progress.memory,
       });
     };
+    startQuery();
     requestImage(
       url,
       selectedMz,
@@ -199,6 +206,7 @@ export function AppProvider({ children }: AppProviderProps) {
       imageLevel,
       onProgress,
     )
+      .finally(endQuery)
       .then((image) => {
         dispatch({ type: "imageReady", url, mz: selectedMz, image });
       })
