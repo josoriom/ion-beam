@@ -1164,7 +1164,7 @@ body.dragging {
 
 .inspect-row {
   display: grid;
-  grid-template-columns: 8px 1fr 32px 50px 52px;
+  grid-template-columns: 8px 20px 1fr 32px 50px 52px;
   align-items: center;
   gap: 5px;
   padding: 1px 0;
@@ -1189,8 +1189,13 @@ body.dragging {
 }
 
 .inspect-row-code {
-  flex-shrink: 0;
-  min-width: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.inspect-row-code span {
+  min-width: 20px;
   padding: 0 3px;
   font-family: var(--mono);
   font-size: 8px;
@@ -1253,4 +1258,29 @@ body.dragging {
   font-size: 9px;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
+}
+
+.inspect-note {
+  margin: 6px 0 0;
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+.inspect-total {
+  cursor: help;
+}
+
+.inspect-sub {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 0 2px 38px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.inspect-sub-raw {
+  padding-right: 2px;
 }

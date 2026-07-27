@@ -1,5 +1,5 @@
-import { memo, useEffect, useSyncExternalStore } from "react";
-import { getTraffic, subscribe, type RegionTraffic } from "../ms/traffic";
+import { Fragment, memo, useEffect, useSyncExternalStore } from "react";
+import { getTraffic, subscribe, type BlockCount, type RegionTraffic } from "../ms/traffic";
 import type { SpecInfo } from "../ms/ionLayout";
 import { formatBytes, formatCount, formatPercent } from "../utilities/format";
 import { useDrag } from "../utilities/useDrag";
@@ -43,17 +43,44 @@ export const InspectPanel = memo(function InspectPanel() {
       </header>
 
       <div className="inspect-summary">
-        <Total label="Downloaded" value={formatBytes(traffic.downloaded)} />
-        <Total label="of" value={formatBytes(traffic.fileSize)} />
-        <Total label="Read" value={formatPercent(traffic.downloaded, traffic.fileSize)} />
-        <Total label="Requests" value={formatCount(traffic.requests)} />
-        <Total label="m/z window" value={traffic.mzWindow ? formatCount(traffic.mzWindow) : "—"} />
-        <Total label="Block size" value={traffic.blockSize ? formatBytes(traffic.blockSize) : "—"} />
+        <Total
+          label="Downloaded"
+          value={formatBytes(traffic.downloaded)}
+          hint="Bytes pulled over the network, as stored in the file"
+        />
+        <Total
+          label="of"
+          value={formatBytes(traffic.fileSize)}
+          hint="Total file size on disk, compressed"
+        />
+        <Total
+          label="Read"
+          value={formatPercent(traffic.downloaded, traffic.fileSize)}
+          hint="Share of the stored file already downloaded"
+        />
+        <Total
+          label="Requests"
+          value={formatCount(traffic.requests)}
+          hint="Range requests served for this file"
+        />
+        <Total
+          label="m/z window"
+          value={traffic.mzWindow ? formatCount(traffic.mzWindow) : "—"}
+          hint="Width of one m/z window, in m/z units"
+        />
+        <Total
+          label="Block raw"
+          value={traffic.blockSize ? formatBytes(traffic.blockSize) : "—"}
+          hint="Target size of one block before compression, so it does not match the stored sizes below"
+        />
       </div>
 
       <div className="inspect-body">
         {traffic.regions.length === 0 && (
           <p className="inspect-empty">Waiting for the file header…</p>
+        )}
+        {traffic.regions.length > 0 && (
+          <p className="inspect-note">Sizes below are stored bytes, compressed</p>
         )}
         {groups.map((group) => (
           <Group key={group} name={group} regions={traffic.regions} />
@@ -66,6 +93,7 @@ export const InspectPanel = memo(function InspectPanel() {
             </h3>
             <div className="inspect-row">
               <span className="inspect-row-dot" />
+              <span className="inspect-row-code" />
               <span className="inspect-row-name">Trailer and gaps</span>
               <div className="inspect-row-bar" />
               <span className="inspect-row-bytes">{formatBytes(traffic.unmapped)}</span>
@@ -78,9 +106,9 @@ export const InspectPanel = memo(function InspectPanel() {
   );
 });
 
-function Total({ label, value }: { label: string; value: string }) {
+function Total({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="inspect-total">
+    <div className="inspect-total" title={hint}>
       <span className="inspect-total-label">{label}</span>
       <span className="inspect-total-value">{value}</span>
     </div>
@@ -100,7 +128,10 @@ function Group({ name, regions }: { name: string; regions: RegionTraffic[] }) {
         <span className="inspect-group-total">{formatBytes(downloaded)}</span>
       </h3>
       {rows.map((region) => (
-        <Row key={region.name} region={region} />
+        <Fragment key={region.name}>
+          <Row region={region} />
+          {region.blocks && <BlockLine blocks={region.blocks} />}
+        </Fragment>
       ))}
     </section>
   );
@@ -113,10 +144,10 @@ function Row({ region }: { region: RegionTraffic }) {
   return (
     <div className="inspect-row">
       <span className="inspect-row-dot">{region.spec && <SpecDot region={region} />}</span>
+      <span className="inspect-row-code">
+        {region.code.length >= 1 && region.code.length <= 2 && <span>{region.code}</span>}
+      </span>
       <span className="inspect-row-name" title={region.name}>
-        {region.code.length >= 1 && region.code.length <= 2 && (
-          <span className="inspect-row-code">{region.code}</span>
-        )}
         {region.name}
       </span>
       <div className="inspect-row-bar">
@@ -127,6 +158,22 @@ function Row({ region }: { region: RegionTraffic }) {
       </div>
       <span className="inspect-row-bytes">{formatBytes(region.downloaded)}</span>
       <span className="inspect-row-size">/ {formatBytes(region.size)}</span>
+    </div>
+  );
+}
+
+function BlockLine({ blocks }: { blocks: BlockCount }) {
+  return (
+    <div
+      className="inspect-sub"
+      title="Blocks read so far and how much they unpack to. Blocks are freed after use, so this counts work done, not memory held."
+    >
+      <span>
+        {formatCount(blocks.done)} / {formatCount(blocks.total)} blocks read
+      </span>
+      <span className="inspect-sub-raw">
+        {formatBytes(blocks.plainDone)} / {formatBytes(blocks.plainTotal)} unpacked
+      </span>
     </div>
   );
 }

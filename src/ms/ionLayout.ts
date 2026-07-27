@@ -13,6 +13,7 @@ export interface Region {
   start: number;
   size: number;
   spec: SpecInfo | null;
+  blocksFor: string | null;
 }
 
 export interface Layout {
@@ -67,7 +68,15 @@ export function readLayout(header: Uint8Array): Layout | null {
 
   const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
   const regions: Region[] = [
-    { name: "File header", code: "header", group: "Header", start: 0, size: headerSize, spec: null },
+    {
+      name: "File header",
+      code: "header",
+      group: "Header",
+      start: 0,
+      size: headerSize,
+      spec: null,
+      blocksFor: null,
+    },
   ];
 
   for (const section of sections) {
@@ -84,6 +93,7 @@ export function readLayout(header: Uint8Array): Layout | null {
         start,
         size,
         spec: readSpec(view, section),
+        blocksFor: null,
       });
     }
   }
@@ -115,6 +125,7 @@ function pushBlockRegions(
     start,
     size: payloadSize,
     spec: null,
+    blocksFor: null,
   });
 
   if (section.dirName === undefined || section.dirCrcAt === undefined || dirSize === 0) return;
@@ -125,6 +136,7 @@ function pushBlockRegions(
     start: start + payloadSize,
     size: dirSize,
     spec: { stride: blockEntryBytes, count: blockCount, crc: view.getUint32(section.dirCrcAt, true) },
+    blocksFor: section.name,
   });
 }
 

@@ -6,8 +6,16 @@ import {
   type SpecInfo,
 } from "./ionLayout";
 import { crc32 } from "../utilities/crc32";
+import { findFirstBlock, readBlocks, type Block } from "./blockDirectory";
 
 export type Verified = "ok" | "bad" | null;
+
+export interface BlockCount {
+  done: number;
+  total: number;
+  plainDone: number;
+  plainTotal: number;
+}
 
 export interface RegionTraffic {
   name: string;
@@ -17,6 +25,7 @@ export interface RegionTraffic {
   downloaded: number;
   spec: SpecInfo | null;
   verified: Verified;
+  blocks: BlockCount | null;
 }
 
 export interface Traffic {
@@ -47,6 +56,14 @@ interface Check {
   filled: number;
 }
 
+interface BlockSet {
+  blocks: Block[];
+  touched: Uint8Array;
+  done: number;
+  plainDone: number;
+  plainTotal: number;
+}
+
 interface Tally {
   sample: string | null;
   fileSize: number;
@@ -59,6 +76,8 @@ interface Tally {
   verified: Verified[];
   checks: Check[];
   waiting: Range[];
+  blockSets: (BlockSet | null)[];
+  waitingBlocks: Range[];
 }
 
 const publishDelay = 100;
@@ -106,6 +125,8 @@ function newTally(sample: string | null): Tally {
     verified: [],
     checks: [],
     waiting: [],
+    blockSets: [],
+    waitingBlocks: [],
   };
 }
 
@@ -155,6 +176,7 @@ function applyLayout(active: Tally, layout: Layout): void {
   active.regions = layout.regions;
   active.perRegion = new Array(layout.regions.length).fill(0);
   active.verified = new Array(layout.regions.length).fill(null);
+  active.blockSets = new Array(layout.regions.length).fill(null);
   active.checks = openChecks(layout.regions);
   active.blockSize = layout.blockSize;
   active.mzWindow = layout.mzWindow;
@@ -195,6 +217,58 @@ function countRange(active: Tally, range: Range): void {
     const end = Math.min(range.end, region.start + region.size);
     if (end > start) active.perRegion[i] += end - start;
   }
+  markBlocks(active, range);
+}
+
+function markBlocks(active: Tally, range: Range): void {
+  let waiting = false;
+  for (let i = 0; i < active.blockSets.length; i += 1) {
+    const set = active.blockSets[i];
+    if (set) markBlockSet(set, range);
+    else if (active.regions[i].group === "Blocks" && active.regions[i].spec === null) waiting = true;
+  }
+  if (waiting) active.waitingBlocks.push({ start: range.start, end: range.end });
+}
+
+function markBlockSet(set: BlockSet, range: Range): void {
+  const blocks = set.blocks;
+  for (let i = findFirstBlock(blocks, range.start); i < blocks.length; i += 1) {
+    if (blocks[i].start >= range.end) break;
+    if (set.touched[i]) continue;
+    set.touched[i] = 1;
+    set.done += 1;
+    set.plainDone += blocks[i].plain;
+  }
+}
+
+function openBlockSet(active: Tally, check: Check): void {
+  const directory = active.regions[check.region];
+  if (directory.blocksFor === null) return;
+
+  const target = active.regions.findIndex((region) => region.name === directory.blocksFor);
+  if (target < 0) return;
+
+  const blocks = readBlocks(check.buffer, active.regions[target].start);
+  let plainTotal = 0;
+  for (const block of blocks) plainTotal += block.plain;
+
+  const set: BlockSet = {
+    blocks,
+    touched: new Uint8Array(blocks.length),
+    done: 0,
+    plainDone: 0,
+    plainTotal,
+  };
+  active.blockSets[target] = set;
+  for (const range of active.waitingBlocks) markBlockSet(set, range);
+  if (active.blockSets.every((entry, index) => entry !== null || !isBlockPayload(active, index))) {
+    active.waitingBlocks = [];
+  }
+}
+
+function isBlockPayload(active: Tally, index: number): boolean {
+  const region = active.regions[index];
+  return region.group === "Blocks" && region.spec === null;
 }
 
 function overlapsCheck(active: Tally, range: Range): boolean {
@@ -235,7 +309,9 @@ function fillCheck(
 
   if (check.filled < region.size) return true;
 
-  active.verified[check.region] = crc32(check.buffer) === check.crc ? "ok" : "bad";
+  const passed = crc32(check.buffer) === check.crc;
+  active.verified[check.region] = passed ? "ok" : "bad";
+  if (passed) openBlockSet(active, check);
   return false;
 }
 
@@ -306,6 +382,7 @@ function buildSnapshot(source: Tally): Traffic {
   let mapped = 0;
   const regions = source.regions.map((region, index) => {
     mapped += source.perRegion[index];
+    const set = source.blockSets[index];
     return {
       name: region.name,
       code: region.code,
@@ -314,6 +391,14 @@ function buildSnapshot(source: Tally): Traffic {
       downloaded: source.perRegion[index],
       spec: region.spec,
       verified: source.verified[index],
+      blocks: set
+        ? {
+            done: set.done,
+            total: set.blocks.length,
+            plainDone: set.plainDone,
+            plainTotal: set.plainTotal,
+          }
+        : null,
     };
   });
 
