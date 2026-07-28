@@ -8,16 +8,7 @@ export interface Compound {
 
 export const compounds: Compound[] = [
   { label: 'Serotonin-AccQTag', rt: 2.15, mz: 347.15025, sd: 0.1, MF: 'C20H18N4O2' },
-  { label: 'Imidazoleacetate', rt: 0.505, mz: 129.06585, sd: 0.1, MF: 'C5H8N2O2' },
-  { label: 'Caffeine', rt: 2.87, mz: 195.08765, sd: 0.1, MF: 'C8H10N4O2' },
-  { label: 'Paracetamol', rt: 1.94, mz: 152.0706, sd: 0.1, MF: 'C8H9NO2' },
-  { label: 'Anthranilate-AccQTag', rt: 2.64, mz: 308.10297, sd: 0.1, MF: 'C17H13N3O3' },
   { label: 'kynurenine-AccQTag', rt: 4.22, mz: 379.14008, sd: 0.1, MF: 'C20H18N4O4' },
-  { label: 'Paraxanthine-1', rt: 1.765, mz: 181.072, sd: 0.1, MF: 'C7H8N4O2' },
-  { label: 'Paraxanthine-2', rt: 2.12, mz: 181.072, sd: 0.1, MF: 'C7H8N4O2' },
-  { label: 'Paraxanthine-3', rt: 5.18, mz: 181.072, sd: 0.1, MF: 'C7H8N4O2' },
-  { label: 'Indole', rt: 3.49, mz: 118.06513, sd: 0.1, MF: 'C8H7N' },
-  { label: 'Adenosine', rt: 0.51, mz: 268.10403, sd: 0.1, MF: 'C10H13N5O4' },
   { label: '1-methylhistidine', rt: 2.61, mz: 340.1404, sd: 0.1762275427191189 },
   { label: '3-methylhistidine', rt: 2.52, mz: 340.1404, sd: 0.18534658928741327 },
   { label: 'Alanine', rt: 2.39, mz: 260.103, sd: 0.05002146916643898 },

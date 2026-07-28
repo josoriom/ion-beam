@@ -16,10 +16,6 @@ export function formatCount(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-export function formatExact(value: number): string {
-  return `${formatCount(value)} B`;
-}
-
 export function formatSeconds(ms: number): string {
   return `${(ms / 1000).toFixed(3)} s`;
 }

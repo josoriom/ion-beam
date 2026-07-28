@@ -106,12 +106,6 @@ export function getTraffic(): Traffic {
   return snapshot;
 }
 
-export function applySnapshot(source: Traffic): void {
-  if (source.sample !== tally.sample) return;
-  snapshot = source;
-  for (const listener of listeners) listener();
-}
-
 function newTally(sample: string | null): Tally {
   return {
     sample,

@@ -2,25 +2,10 @@ import { produce } from "immer";
 import type { PeakOptions, SampleFile } from "quantion";
 import type { Point } from "../ms/eic";
 import type { Peak } from "../ms/peaks";
-import type { RenderedImage } from "../ms/ionImage";
 import type { Compound } from "../data/compounds";
-import {
-  defaultMz,
-  defaultPath,
-  imagingPath,
-  timeRange,
-} from "../data/targets";
+import { defaultMz, defaultPath, timeRange } from "../data/targets";
 import { readPaths } from "../utilities/savedPaths";
 import { toRawFolder } from "../ms/github";
-import {
-  defaultImageTargets,
-  imageKey,
-  targetId,
-  type ImageTarget,
-} from "../data/imageTargets";
-
-export type Mode = "eic" | "imaging";
-
 export interface SamplesState {
   path: string;
   status: "ok" | "error";
@@ -47,26 +32,8 @@ export interface Peaks {
   list: Peak[];
 }
 
-export interface ImageOutcome {
-  status: "ok" | "error" | "pending";
-  image?: RenderedImage;
-  message?: string;
-}
-
-export interface ImageProgress {
-  fetched: number;
-  total: number;
-  memory: number | null;
-}
-
 export interface State {
-  mode: Mode;
-  imageTargets: ImageTarget[];
-  selectedMz: number | null;
-  images: Record<string, ImageOutcome>;
-  imageProgress: ImageProgress | null;
   path: string;
-  imagePath: string;
   savedPaths: string[];
   pickedSample: string | null;
   mzText: string;
@@ -101,13 +68,7 @@ export interface State {
 const startPaths = readPaths([defaultPath]);
 
 export const initialState: State = {
-  mode: "eic",
-  imageTargets: defaultImageTargets,
-  selectedMz: null,
-  images: {},
-  imageProgress: null,
   path: startPaths[0] ?? "",
-  imagePath: imagingPath,
   savedPaths: startPaths,
   pickedSample: null,
   mzText: String(defaultMz),
@@ -140,20 +101,7 @@ export const initialState: State = {
 };
 
 export type Action =
-  | { type: "setMode"; mode: Mode }
   | { type: "reloadSamples" }
-  | { type: "addImageTarget"; mz: number }
-  | { type: "removeImageTarget"; mz: number }
-  | { type: "selectImageTarget"; mz: number }
-  | {
-      type: "imageProgress";
-      fetched: number;
-      total: number;
-      memory: number | null;
-    }
-  | { type: "imageRequested"; url: string; mz: number }
-  | { type: "imageReady"; url: string; mz: number; image: RenderedImage }
-  | { type: "imageFailed"; url: string; mz: number; message: string }
   | { type: "setPath"; path: string }
   | { type: "addPath"; path: string }
   | { type: "removePath"; path: string }
@@ -200,60 +148,11 @@ function clampPanelWidth(value: number): number {
 export function reducer(state: State, action: Action): State {
   return produce(state, (draft: State) => {
     switch (action.type) {
-      case "setMode":
-        draft.mode = action.mode;
-        break;
       case "reloadSamples":
         draft.samples = null;
         break;
-      case "addImageTarget": {
-        const exists = draft.imageTargets.some(
-          (target) => target.mz === action.mz,
-        );
-        if (!exists) {
-          draft.imageTargets.push({ id: targetId(action.mz), mz: action.mz });
-        }
-        draft.selectedMz = action.mz;
-        draft.imageProgress = null;
-        break;
-      }
-      case "removeImageTarget":
-        draft.imageTargets = draft.imageTargets.filter(
-          (target) => target.mz !== action.mz,
-        );
-        if (draft.selectedMz === action.mz) draft.selectedMz = null;
-        break;
-      case "selectImageTarget":
-        draft.selectedMz = action.mz;
-        draft.imageProgress = null;
-        break;
-      case "imageProgress":
-        draft.imageProgress = {
-          fetched: action.fetched,
-          total: action.total,
-          memory: action.memory,
-        };
-        break;
-      case "imageRequested":
-        draft.images[imageKey(action.url, action.mz)] = { status: "pending" };
-        break;
-      case "imageReady":
-        draft.images[imageKey(action.url, action.mz)] = {
-          status: "ok",
-          image: action.image,
-        };
-        draft.imageProgress = null;
-        break;
-      case "imageFailed":
-        draft.images[imageKey(action.url, action.mz)] = {
-          status: "error",
-          message: action.message,
-        };
-        draft.imageProgress = null;
-        break;
       case "setPath":
-        if (draft.mode === "imaging") draft.imagePath = action.path;
-        else draft.path = action.path;
+        draft.path = action.path;
         draft.pickedMz = null;
         draft.pickedLabel = null;
         draft.targetRt = null;
@@ -267,8 +166,7 @@ export function reducer(state: State, action: Action): State {
       }
       case "removePath": {
         draft.savedPaths = draft.savedPaths.filter((item) => item !== action.path);
-        if (draft.mode === "imaging") draft.imagePath = "";
-        else draft.path = "";
+        draft.path = "";
         draft.pickedSample = null;
         draft.pickedMz = null;
         draft.pickedLabel = null;
@@ -436,7 +334,7 @@ export function withSlash(value: string): string {
 }
 
 export function activePath(state: State): string {
-  return state.mode === "imaging" ? state.imagePath : state.path;
+  return state.path;
 }
 
 const emptyNames: string[] = [];

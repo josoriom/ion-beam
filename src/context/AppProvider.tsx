@@ -4,11 +4,9 @@ import { getSamples } from "../ms/listSamples";
 import { openIonFile } from "../ms/ionFile";
 import { getEic } from "../ms/eic";
 import { getPeaks } from "../ms/peaks";
-import { requestImage, type ImageProgress } from "../ms/imageClient";
 import { trackSample } from "../ms/traffic";
 import { endQuery, resetQuery, startQuery } from "../ms/queryTimer";
 import { writePaths } from "../utilities/savedPaths";
-import { imageKey, imageLevel, targetTolerance } from "../data/imageTargets";
 import { DispatchContext, StateContext } from "./context";
 import {
   activePath,
@@ -49,7 +47,7 @@ function waitForEicTasks(
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const { mode, selectedMz, images, samples, savedPaths } = state;
+  const { samples, savedPaths } = state;
 
   useEffect(() => {
     writePaths(savedPaths);
@@ -73,11 +71,6 @@ export function AppProvider({ children }: AppProviderProps) {
   const { url, file, mz, eicReady, points } = selectView(state);
 
   const eicTasksByFile = useRef(new Map<SampleFile, Set<Promise<void>>>());
-  const latestImages = useRef(images);
-
-  useEffect(() => {
-    latestImages.current = images;
-  });
 
   useEffect(() => {
     if (samples && samples.path === path) return undefined;
@@ -105,7 +98,7 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [url]);
 
   useEffect(() => {
-    if (mode !== "eic" || !url) return undefined;
+    if (!url) return undefined;
     let active = true;
     let opened: SampleFile | null = null;
     const tasks = eicTasksByFile.current;
@@ -133,7 +126,7 @@ export function AppProvider({ children }: AppProviderProps) {
         target.dispose?.();
       });
     };
-  }, [mode, url]);
+  }, [url]);
 
   useEffect(() => {
     if (!file || mz === null) return undefined;
@@ -182,55 +175,6 @@ export function AppProvider({ children }: AppProviderProps) {
     autoBaseline,
     allowOverlap,
   ]);
-
-  useEffect(() => {
-    if (mode !== "imaging" || !url || selectedMz === null) return undefined;
-    const key = imageKey(url, selectedMz);
-    if (latestImages.current[key]) return undefined;
-
-    dispatch({ type: "imageRequested", url, mz: selectedMz });
-
-    let active = true;
-    let lastPercent = -1;
-    const onProgress = (progress: ImageProgress) => {
-      if (!active) return;
-      const percent =
-        progress.total > 0
-          ? Math.floor((progress.fetched / progress.total) * 100)
-          : 0;
-      if (percent === lastPercent) return;
-      lastPercent = percent;
-      dispatch({
-        type: "imageProgress",
-        fetched: progress.fetched,
-        total: progress.total,
-        memory: progress.memory,
-      });
-    };
-    startQuery();
-    requestImage(
-      url,
-      selectedMz,
-      targetTolerance(selectedMz),
-      imageLevel,
-      onProgress,
-    )
-      .finally(endQuery)
-      .then((image) => {
-        dispatch({ type: "imageReady", url, mz: selectedMz, image });
-      })
-      .catch((error: unknown) => {
-        dispatch({
-          type: "imageFailed",
-          url,
-          mz: selectedMz,
-          message: readError(error),
-        });
-      });
-    return () => {
-      active = false;
-    };
-  }, [mode, url, selectedMz]);
 
   return (
     <StateContext.Provider value={state}>

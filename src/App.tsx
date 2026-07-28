@@ -9,10 +9,6 @@ import { ConfigPanel } from "./components/ConfigPanel";
 import { EicPlot } from "./components/EicPlot";
 import { PeakTable } from "./components/PeakTable";
 import { ResizeHandle } from "./components/ResizeHandle";
-import { ModeSwitch } from "./components/ModeSwitch";
-import { ImageView } from "./components/ImageView";
-import { ImageTargets } from "./components/ImageTargets";
-import { RamMeter } from "./components/RamMeter";
 import { InspectPanel } from "./components/InspectPanel";
 import { useAppDispatch, useAppState } from "./context/context";
 import { activePath, peakOptions, selectView } from "./context/reducer";
@@ -22,7 +18,6 @@ function App() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const view = selectView(state);
-  const imaging = state.mode === "imaging";
 
   const baseline = useMemo(
     () => (state.displayBaseline && view.eicReady ? getBaseline(view.points) : null),
@@ -79,18 +74,14 @@ function App() {
       <main className="content">
         <header className="content-head">
           <div className="content-head-text">
-            <h1 className="content-title">
-              {imaging ? "Ion image" : "Extracted ion chromatogram"}
-            </h1>
+            <h1 className="content-title">Extracted ion chromatogram</h1>
             <p className="content-sub" title={view.activeSample ?? ""}>
-              {imaging
-                ? `${view.activeSample ?? "Pick a file"} · ${state.imageTargets.length} targets`
-                : view.activeSample
-                  ? `${view.activeSample} · m/z ${state.mzText}`
-                  : "Pick a sample"}
+              {view.activeSample
+                ? `${view.activeSample} · m/z ${state.mzText}`
+                : "Pick a sample"}
             </p>
           </div>
-          {!imaging && !state.autoPeakPicking && (
+          {!state.autoPeakPicking && (
             <button
               type="button"
               className="run-button"
@@ -104,14 +95,10 @@ function App() {
 
         <div className="content-path">
           <PathInput path={activePath(state)} saved={state.savedPaths} />
-          <div className="content-modes">
-            <ModeSwitch />
-          </div>
         </div>
 
         <div className="content-body">
-          {imaging && <ImageView />}
-          {!imaging && view.activeSample && (
+          {view.activeSample && (
             <section className="plot-card">
               {view.mz === null && (
                 <p className="banner">Pick a metabolite or enter an m/z to load blocks</p>
@@ -136,7 +123,7 @@ function App() {
             </section>
           )}
 
-          {!imaging && view.peaksReady && <PeakTable peaks={view.peaks} />}
+          {view.peaksReady && <PeakTable peaks={view.peaks} />}
         </div>
 
       </main>
@@ -163,29 +150,20 @@ function App() {
             {state.metabolitesOpen ? "›" : "‹"}
           </button>
           {state.metabolitesOpen && (
-            <span className="sidebar-label">{imaging ? "Targets" : "Metabolites"}</span>
+            <span className="sidebar-label">Metabolites</span>
           )}
           {state.metabolitesOpen && (
-            <span className="sidebar-count">
-              {imaging ? state.imageTargets.length : compounds.length}
-            </span>
+            <span className="sidebar-count">{compounds.length}</span>
           )}
         </div>
         {state.metabolitesOpen && (
           <div className="sidebar-body">
-            {imaging ? (
-              <ImageTargets />
-            ) : (
-              <>
-                <ConfigPanel />
-                <CompoundList compounds={compounds} selectedLabel={state.pickedLabel} />
-              </>
-            )}
+            <ConfigPanel />
+            <CompoundList compounds={compounds} selectedLabel={state.pickedLabel} />
           </div>
         )}
       </aside>
 
-      <RamMeter />
       <button
         type="button"
         className={state.inspectOpen ? "inspect-fab active" : "inspect-fab"}
