@@ -6,8 +6,7 @@ export function readPaths(fallback: string[]): string[] {
     if (!raw) return fallback;
     const list = JSON.parse(raw) as unknown;
     if (!Array.isArray(list)) return fallback;
-    const paths = list.filter((item): item is string => typeof item === "string");
-    return paths.length > 0 ? paths : fallback;
+    return list.filter((item): item is string => typeof item === "string");
   } catch {
     return fallback;
   }

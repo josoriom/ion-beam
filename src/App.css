@@ -982,7 +982,7 @@ body.resizing .resize-handle::after {
   display: flex;
   flex-direction: column;
   width: 360px;
-  max-height: calc(100vh - 24px);
+  max-height: calc(100vh - 68px);
   background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: 10px;

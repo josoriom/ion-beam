@@ -20,6 +20,7 @@ const proxy = Object.fromEntries(
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.GITHUB_PAGES ? '/ion-beam/' : '/',
   plugins: [react()],
   server: {
     port: Number(process.env.PORT) || 5173,

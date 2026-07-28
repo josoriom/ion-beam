@@ -98,15 +98,17 @@ export interface State {
   peaks: Peaks | null;
 }
 
+const startPaths = readPaths([defaultPath]);
+
 export const initialState: State = {
   mode: "eic",
   imageTargets: defaultImageTargets,
   selectedMz: null,
   images: {},
   imageProgress: null,
-  path: defaultPath,
+  path: startPaths[0] ?? "",
   imagePath: imagingPath,
-  savedPaths: readPaths([defaultPath]),
+  savedPaths: startPaths,
   pickedSample: null,
   mzText: String(defaultMz),
   pickedMz: null,

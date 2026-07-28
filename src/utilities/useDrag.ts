@@ -37,6 +37,7 @@ export function useDrag() {
   const onGrab = useCallback((event: React.PointerEvent<HTMLElement>) => {
     const panel = panelRef.current;
     if (!panel) return;
+    if (event.target instanceof Element && event.target.closest("button")) return;
     event.preventDefault();
 
     const rect = panel.getBoundingClientRect();
