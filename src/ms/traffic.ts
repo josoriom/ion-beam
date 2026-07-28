@@ -137,15 +137,22 @@ function watchDownloads(): void {
   const original = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const response = await original(input, init);
-    if (readFileName(readUrl(input)) === tally.sample) {
-      await record(response, tally);
+    if (
+      readFileName(readUrl(input)) === tally.sample &&
+      readMethod(input, init) !== "HEAD"
+    ) {
+      await record(response, readAsked(input, init), tally);
     }
     return response;
   };
 }
 
-async function record(response: Response, active: Tally): Promise<void> {
-  const served = readServed(response);
+async function record(
+  response: Response,
+  asked: Range | null,
+  active: Tally,
+): Promise<void> {
+  const served = readServed(response, asked);
   if (!served) return;
 
   active.requests += 1;
@@ -335,7 +342,7 @@ function addCovered(check: Check, from: number, to: number): void {
   check.filled = filled;
 }
 
-function readServed(response: Response): Served | null {
+function readServed(response: Response, asked: Range | null): Served | null {
   const contentRange = response.headers.get("Content-Range");
   const match = contentRange ? /bytes (\d+)-(\d+)\/(\d+)/.exec(contentRange) : null;
   if (match) {
@@ -347,10 +354,41 @@ function readServed(response: Response): Served | null {
     };
   }
 
-  if (response.status !== 200) return null;
   const length = Number(response.headers.get("Content-Length"));
   if (!Number.isFinite(length) || length <= 0) return null;
+
+  if (response.status === 206) {
+    if (!asked) return null;
+    return { start: asked.start, end: asked.start + length, total: 0 };
+  }
+
+  if (response.status !== 200) return null;
   return { start: 0, end: length, total: length };
+}
+
+function readMethod(input: RequestInfo | URL, init?: RequestInit): string {
+  if (init?.method) return init.method.toUpperCase();
+  if (input instanceof Request) return input.method.toUpperCase();
+  return "GET";
+}
+
+function readAsked(input: RequestInfo | URL, init?: RequestInit): Range | null {
+  const header = readRangeHeader(input, init);
+  const match = header ? /bytes=(\d+)-(\d+)/.exec(header) : null;
+  if (!match) return null;
+  return { start: Number(match[1]), end: Number(match[2]) + 1 };
+}
+
+function readRangeHeader(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): string | null {
+  if (init?.headers) {
+    const value = new Headers(init.headers).get("Range");
+    if (value) return value;
+  }
+  if (input instanceof Request) return input.headers.get("Range");
+  return null;
 }
 
 function readUrl(input: RequestInfo | URL): string {
