@@ -1,4 +1,5 @@
 const hosts = [
+  { origin: "http://134.115.48.123", prefix: "/remote" },
   { origin: "https://raw.githubusercontent.com", prefix: "/github-raw" },
   { origin: "https://api.github.com", prefix: "/github-api" },
 ];

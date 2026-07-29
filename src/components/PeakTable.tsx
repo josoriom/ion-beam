@@ -19,32 +19,34 @@ export const PeakTable = memo(function PeakTable({ peaks }: PeakTableProps) {
       {peaks.length === 0 ? (
         <p className="peak-empty">No peaks found</p>
       ) : (
-        <table className="peaks">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>RT</th>
-              <th>Intensity</th>
-              <th>Integral</th>
-              <th>From</th>
-              <th>To</th>
-              <th>NP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {peaks.map((peak, index) => (
-              <tr key={index}>
-                <td>{index + 1}</td>
-                <td>{peak.rt.toFixed(3)}</td>
-                <td>{formatAmount(peak.intensity)}</td>
-                <td>{formatAmount(peak.integral)}</td>
-                <td>{peak.from.toFixed(3)}</td>
-                <td>{peak.to.toFixed(3)}</td>
-                <td>{peak.nPoints}</td>
+        <div className="peak-scroll">
+          <table className="peaks">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>RT</th>
+                <th>Intensity</th>
+                <th>Integral</th>
+                <th>From</th>
+                <th>To</th>
+                <th>NP</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {peaks.map((peak, index) => (
+                <tr key={index}>
+                  <td>{index + 1}</td>
+                  <td>{peak.rt.toFixed(3)}</td>
+                  <td>{formatAmount(peak.intensity)}</td>
+                  <td>{formatAmount(peak.integral)}</td>
+                  <td>{peak.from.toFixed(3)}</td>
+                  <td>{peak.to.toFixed(3)}</td>
+                  <td>{peak.nPoints}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

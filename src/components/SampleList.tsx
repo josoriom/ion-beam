@@ -1,9 +1,12 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, type MouseEvent } from "react";
 import { useAppDispatch } from "../context/context";
+import { colorsBeforeRepeat } from "../context/reducer";
+import { TraceSwatch } from "./TraceSwatch";
 
 interface SampleListProps {
   samples: string[];
-  selectedSample: string | null;
+  mainSample: string | null;
+  sampleColors: Record<string, string>;
 }
 
 function filterNames(names: string[], query: string, matchCase: boolean): string[] {
@@ -19,9 +22,20 @@ function filterNames(names: string[], query: string, matchCase: boolean): string
   });
 }
 
+function wantsToAdd(event: MouseEvent): boolean {
+  return event.shiftKey || event.metaKey || event.ctrlKey;
+}
+
+function readAddHint(name: string, shown: boolean, colorsRepeat: boolean): string {
+  if (shown) return `Remove ${name} from the chart`;
+  if (colorsRepeat) return `Add ${name}, reusing a colour already on the chart`;
+  return `Add ${name} to the chart`;
+}
+
 export const SampleList = memo(function SampleList({
   samples,
-  selectedSample,
+  mainSample,
+  sampleColors,
 }: SampleListProps) {
   const dispatch = useAppDispatch();
   const [query, setQuery] = useState("");
@@ -31,6 +45,8 @@ export const SampleList = memo(function SampleList({
     () => filterNames(samples, query, matchCase),
     [samples, query, matchCase],
   );
+
+  const colorsRepeat = Object.keys(sampleColors).length >= colorsBeforeRepeat;
 
   return (
     <div className="sample-panel">
@@ -59,17 +75,47 @@ export const SampleList = memo(function SampleList({
       ) : (
         <ul className="sample-list">
           {found.map((name) => {
-            const isActive = name === selectedSample;
+            const isMain = name === mainSample;
+            const color = sampleColors[name];
+            const shown = color !== undefined;
             return (
-              <li key={name}>
+              <li key={name} className="sample-row">
                 <button
                   type="button"
-                  className={isActive ? "sample-item active" : "sample-item"}
-                  title={name}
-                  onClick={() => dispatch({ type: "pickSample", name })}
+                  className={
+                    isMain
+                      ? "sample-item main"
+                      : shown
+                        ? "sample-item added"
+                        : "sample-item"
+                  }
+                  title={`Show only ${name}`}
+                  aria-pressed={shown}
+                  onClick={(event) => {
+                    if (wantsToAdd(event) && !isMain) {
+                      dispatch({ type: "toggleSample", name });
+                      return;
+                    }
+                    dispatch({ type: "pickSample", name });
+                  }}
                 >
-                  {name}
+                  <span className="sample-pen">
+                    {color && <TraceSwatch color={color} />}
+                  </span>
+                  <span className="sample-name">{name}</span>
                 </button>
+                {!isMain && (
+                  <button
+                    type="button"
+                    className={shown ? "sample-add on" : "sample-add"}
+                    title={readAddHint(name, shown, colorsRepeat)}
+                    aria-label={readAddHint(name, shown, colorsRepeat)}
+                    aria-pressed={shown}
+                    onClick={() => dispatch({ type: "toggleSample", name })}
+                  >
+                    {shown ? "−" : "+"}
+                  </button>
+                )}
               </li>
             );
           })}

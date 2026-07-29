@@ -1,14 +1,15 @@
 .app {
   display: flex;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg);
+  touch-action: manipulation;
 }
 
 .sidebar {
   flex-shrink: 0;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -129,7 +130,7 @@ body.resizing .resize-handle::after {
 .content {
   flex: 1;
   min-width: 0;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -397,7 +398,45 @@ body.resizing .resize-handle::after {
   gap: 1px;
 }
 
+.sample-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.sample-add {
+  flex: none;
+  width: 26px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.sample-add:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.sample-add.on {
+  color: var(--primary);
+  border-color: var(--border);
+}
+
 .sample-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   width: 100%;
   text-align: left;
   padding: 6px 8px;
@@ -408,17 +447,94 @@ body.resizing .resize-handle::after {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  word-break: break-all;
+  user-select: none;
   transition: background 0.1s;
+}
+
+.sample-name {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.sample-pen {
+  display: flex;
+  align-items: center;
+  flex: none;
+  width: 14px;
 }
 
 .sample-item:hover {
   background: var(--primary-soft);
 }
 
-.sample-item.active {
+.sample-item.main {
   background: var(--primary);
   color: #fff;
+}
+
+.sample-item.added {
+  background: var(--primary-soft);
+  box-shadow: inset 2px 0 0 var(--border-strong);
+}
+
+.sample-item.added:hover {
+  background: rgba(51, 65, 85, 0.2);
+}
+
+.trace-legend {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.trace-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.trace-swatch {
+  flex: none;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.trace-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.trace-state {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.trace-state.failed {
+  color: var(--danger);
+}
+
+.trace-remove {
+  flex: none;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-soft);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.trace-remove:hover {
+  color: var(--danger);
 }
 
 .sample-empty {
@@ -564,7 +680,6 @@ body.resizing .resize-handle::after {
 }
 
 .plot-empty {
-  height: 460px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -866,14 +981,12 @@ body.dragging {
 }
 
 .inspect-row-name {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  min-width: 0;
   font-size: 10px;
   color: var(--text);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .inspect-row-code {
@@ -954,9 +1067,11 @@ body.dragging {
   color: var(--text-faint);
 }
 
-.inspect-total {
-  cursor: help;
+.inspect-note.warn {
+  color: var(--danger);
+  font-weight: 600;
 }
+
 
 .inspect-sub {
   display: flex;
@@ -1131,4 +1246,226 @@ body.dragging {
 .path-select:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.sheet-buttons {
+  display: none;
+  gap: 6px;
+}
+
+.sheet-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.sheet-button-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+}
+
+.sheet-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  padding: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+@media (max-width: 820px), (max-height: 520px) {
+  .app.narrow .sidebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    width: auto;
+    height: 62dvh;
+    border: 1px solid var(--border-strong);
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.22);
+  }
+
+  .app.narrow .sidebar.closed {
+    display: none;
+  }
+
+  .app.narrow .sheet-backdrop {
+    display: block;
+  }
+
+  .app.narrow .resize-handle {
+    display: none;
+  }
+
+  .app.narrow .sidebar-head {
+    height: 44px;
+    justify-content: space-between;
+  }
+
+  .app.narrow .content {
+    width: 100%;
+  }
+
+  .content-head {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .sheet-buttons {
+    display: flex;
+    width: 100%;
+  }
+
+  .sheet-button {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .content-title {
+    font-size: 15px;
+  }
+
+  .content-path,
+  .content-body {
+    padding: 10px 12px;
+  }
+
+  .plot-card {
+    padding: 10px;
+  }
+
+  .config-row {
+    flex-wrap: wrap;
+  }
+
+  .config-field {
+    flex: 1 1 40%;
+  }
+
+  .sample-item,
+  .compound-item {
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  .sample-add {
+    width: 40px;
+  }
+
+  .trace-legend {
+    max-height: 88px;
+    overflow-y: auto;
+  }
+
+  .peaks {
+    min-width: 520px;
+  }
+
+  .peak-scroll {
+    overflow-x: auto;
+  }
+
+  .inspect-panel {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+
+  .inspect-fab {
+    min-height: 40px;
+  }
+}
+
+@media (max-height: 520px) {
+  .app.narrow .sidebar {
+    height: 88dvh;
+  }
+
+  .content-head {
+    gap: 8px;
+    padding: 6px 12px;
+  }
+
+  .content-title {
+    font-size: 13px;
+  }
+
+  .content-sub {
+    margin-top: 1px;
+  }
+
+  .sheet-buttons {
+    width: auto;
+  }
+
+  .sheet-button {
+    min-height: 32px;
+    padding: 5px 10px;
+  }
+
+  .content-path {
+    padding: 6px 12px;
+  }
+
+  .path-input {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .path-input-row,
+  .path-saved {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .path-input-label,
+  .path-saved-label {
+    display: none;
+  }
+
+  .content-body {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .plot-card {
+    padding: 8px;
+  }
+
+  .trace-legend {
+    max-height: 44px;
+  }
+
+  .inspect-panel {
+    bottom: 8px;
+    max-height: calc(100dvh - 16px);
+  }
+
+  .inspect-fab {
+    bottom: 8px;
+  }
 }

@@ -1,13 +1,11 @@
-import { useEffect, useReducer, useRef, type ReactNode } from "react";
-import type { SampleFile } from "quantion";
+import { useEffect, useReducer, type ReactNode } from "react";
 import { getSamples } from "../ms/listSamples";
-import { openIonFile } from "../ms/ionFile";
-import { getEic } from "../ms/eic";
 import { getPeaks } from "../ms/peaks";
-import { trackSample } from "../ms/traffic";
-import { endQuery, resetQuery, startQuery } from "../ms/queryTimer";
 import { writePaths } from "../utilities/savedPaths";
+import { watchWideScreen } from "../utilities/screen";
 import { DispatchContext, StateContext } from "./context";
+import { SampleLoader } from "./SampleLoader";
+import { useOpenUrls } from "./useTraces";
 import {
   activePath,
   initialState,
@@ -21,29 +19,6 @@ interface AppProviderProps {
   children: ReactNode;
 }
 
-function trackEicTask(
-  tasks: Map<SampleFile, Set<Promise<void>>>,
-  file: SampleFile,
-  task: Promise<void>,
-) {
-  const running = tasks.get(file) ?? new Set<Promise<void>>();
-  running.add(task);
-  tasks.set(file, running);
-  task.finally(() => {
-    running.delete(task);
-    if (running.size === 0) tasks.delete(file);
-  });
-}
-
-function waitForEicTasks(
-  tasks: Map<SampleFile, Set<Promise<void>>>,
-  file: SampleFile,
-): Promise<void> {
-  const running = tasks.get(file);
-  if (!running || running.size === 0) return Promise.resolve();
-  return Promise.allSettled([...running]).then(() => undefined);
-}
-
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
@@ -52,6 +27,11 @@ export function AppProvider({ children }: AppProviderProps) {
   useEffect(() => {
     writePaths(savedPaths);
   }, [savedPaths]);
+
+  useEffect(
+    () => watchWideScreen((wide) => dispatch({ type: "setWideScreen", wide })),
+    [],
+  );
 
   const {
     rtFrom,
@@ -68,9 +48,8 @@ export function AppProvider({ children }: AppProviderProps) {
     allowOverlap,
   } = state;
   const path = activePath(state);
-  const { url, file, mz, eicReady, points } = selectView(state);
-
-  const eicTasksByFile = useRef(new Map<SampleFile, Set<Promise<void>>>());
+  const { mainKey, mainPoints, mainReady, mz } = selectView(state);
+  const openUrls = useOpenUrls(state);
 
   useEffect(() => {
     if (samples && samples.path === path) return undefined;
@@ -93,63 +72,7 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [path, samples]);
 
   useEffect(() => {
-    trackSample(url);
-    resetQuery();
-  }, [url]);
-
-  useEffect(() => {
-    if (!url) return undefined;
-    let active = true;
-    let opened: SampleFile | null = null;
-    const tasks = eicTasksByFile.current;
-    startQuery();
-    openIonFile(url)
-      .finally(endQuery)
-      .then((file) => {
-        if (!active) {
-          file.dispose?.();
-          return;
-        }
-        opened = file;
-        dispatch({ type: "fileOpened", url, file });
-      })
-      .catch((error: unknown) => {
-        if (active)
-          dispatch({ type: "fileFailed", url, message: readError(error) });
-      });
-    return () => {
-      active = false;
-      const target = opened;
-      if (!target) return;
-      dispatch({ type: "fileClosed", url });
-      waitForEicTasks(tasks, target).finally(() => {
-        target.dispose?.();
-      });
-    };
-  }, [url]);
-
-  useEffect(() => {
-    if (!file || mz === null) return undefined;
-    const key = `${url}|${mz}`;
-    let active = true;
-    startQuery();
-    const task = getEic(file, mz, { from: rtFrom, to: rtTo }, ppm, mzTol)
-      .finally(endQuery)
-      .then((result) => {
-        if (active) dispatch({ type: "eicReady", key, points: result.points });
-      })
-      .catch((error: unknown) => {
-        if (active)
-          dispatch({ type: "eicFailed", key, message: readError(error) });
-      });
-    trackEicTask(eicTasksByFile.current, file, task);
-    return () => {
-      active = false;
-    };
-  }, [file, mz, url, rtFrom, rtTo, ppm, mzTol]);
-
-  useEffect(() => {
-    if (!autoPeakPicking || !eicReady) return;
+    if (!autoPeakPicking || !mainReady || mainKey === null) return;
     const options = peakOptions({
       minIntensity,
       minIntegral,
@@ -159,14 +82,13 @@ export function AppProvider({ children }: AppProviderProps) {
       autoBaseline,
       allowOverlap,
     });
-    const list = getPeaks(points, options);
-    dispatch({ type: "peaksFound", key: `${url}|${mz}`, list });
+    const list = getPeaks(mainPoints, options);
+    dispatch({ type: "peaksFound", key: mainKey, list });
   }, [
     autoPeakPicking,
-    eicReady,
-    points,
-    url,
-    mz,
+    mainReady,
+    mainPoints,
+    mainKey,
     minIntensity,
     minIntegral,
     minWidth,
@@ -179,6 +101,18 @@ export function AppProvider({ children }: AppProviderProps) {
   return (
     <StateContext.Provider value={state}>
       <DispatchContext.Provider value={dispatch}>
+        {openUrls.map((url) => (
+          <SampleLoader
+            key={url}
+            url={url}
+            mz={mz}
+            rtFrom={rtFrom}
+            rtTo={rtTo}
+            ppm={ppm}
+            mzTol={mzTol}
+            dispatch={dispatch}
+          />
+        ))}
         {children}
       </DispatchContext.Provider>
     </StateContext.Provider>

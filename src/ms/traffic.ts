@@ -1,38 +1,43 @@
-import {
-  headerSize,
-  readLayout,
-  type Layout,
-  type Region,
-  type SpecInfo,
-} from "./ionLayout";
+import { headerSize, readLayout, type Layout, type Region } from "./ionLayout";
 import { crc32 } from "../utilities/crc32";
 import { findFirstBlock, readBlocks, type Block } from "./blockDirectory";
 
 export type Verified = "ok" | "bad" | null;
 
 export interface BlockCount {
+  samples: number;
   done: number;
   total: number;
   plainDone: number;
   plainTotal: number;
 }
 
+export interface RegionSpec {
+  stride: number | null;
+  count: number | null;
+  crc: number | null;
+}
+
 export interface RegionTraffic {
   name: string;
   code: string;
   group: string;
+  samples: number;
   size: number;
   downloaded: number;
-  spec: SpecInfo | null;
+  spec: RegionSpec | null;
   verified: Verified;
   blocks: BlockCount | null;
 }
 
 export interface Traffic {
-  sample: string | null;
+  samples: string[];
+  pending: number;
   fileSize: number;
   blockSize: number;
+  blockSizeMixed: boolean;
   mzWindow: number;
+  mzWindowMixed: boolean;
   downloaded: number;
   unmapped: number;
   requests: number;
@@ -65,7 +70,9 @@ interface BlockSet {
 }
 
 interface Tally {
-  sample: string | null;
+  sample: string;
+  live: boolean;
+  readingHeader: boolean;
   fileSize: number;
   blockSize: number;
   mzWindow: number;
@@ -80,18 +87,33 @@ interface Tally {
   waitingBlocks: Range[];
 }
 
+export const memoryBudget = 1024 * 1024 * 1024;
+
 const publishDelay = 100;
 const maxCheckBytes = 16 * 1024 * 1024;
 const listeners = new Set<() => void>();
 
-let tally = newTally(null);
-let snapshot = buildSnapshot(tally);
-let publishTimer = 0;
-let watching = false;
+const tallies = new Map<string, Tally>();
+const parts = new Map<number, Traffic>();
 
-export function trackSample(url: string | null): void {
-  watchDownloads();
-  tally = newTally(url === null ? null : readFileName(url));
+let snapshot = mergeTraffic([]);
+let publishTimer = 0;
+
+watchDownloads();
+
+export function watchSample(url: string): void {
+  const sample = readFileName(url);
+  if (tallies.has(sample)) return;
+  tallies.set(sample, newTally(sample));
+  publish();
+}
+
+export function forgetSample(url: string): void {
+  const sample = readFileName(url);
+  const found = tallies.get(sample);
+  if (!found) return;
+  found.live = false;
+  tallies.delete(sample);
   publish();
 }
 
@@ -106,9 +128,11 @@ export function getTraffic(): Traffic {
   return snapshot;
 }
 
-function newTally(sample: string | null): Tally {
+function newTally(sample: string): Tally {
   return {
     sample,
+    live: true,
+    readingHeader: false,
     fileSize: 0,
     blockSize: 0,
     mzWindow: 0,
@@ -125,17 +149,14 @@ function newTally(sample: string | null): Tally {
 }
 
 function watchDownloads(): void {
-  if (watching) return;
-  watching = true;
-
   const original = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const response = await original(input, init);
-    if (
-      readFileName(readUrl(input)) === tally.sample &&
-      readMethod(input, init) !== "HEAD"
-    ) {
-      await record(response, readAsked(input, init), tally);
+    const watched = tallies.get(readFileName(readUrl(input)));
+    if (watched && readMethod(input, init) !== "HEAD") {
+      record(response.clone(), readAsked(input, init), watched).catch(
+        () => undefined,
+      );
     }
     return response;
   };
@@ -154,9 +175,11 @@ async function record(
   if (served.total > active.fileSize) active.fileSize = served.total;
 
   const startsAtHeader = served.start === 0 && served.end >= headerSize;
-  if (active.regions.length === 0 && startsAtHeader) {
+  if (active.regions.length === 0 && !active.readingHeader && startsAtHeader) {
+    active.readingHeader = true;
     const layout = await readHeaderLayout(response);
-    if (layout && active === tally) applyLayout(active, layout);
+    active.readingHeader = false;
+    if (layout && active.live) applyLayout(active, layout);
   }
 
   addRange(active, served);
@@ -286,7 +309,7 @@ async function verify(response: Response, active: Tally, range: Range): Promise<
   } catch {
     return;
   }
-  if (active !== tally) return;
+  if (!active.live) return;
 
   active.checks = active.checks.filter((check) =>
     fillCheck(active, check, range.start, payload),
@@ -406,42 +429,172 @@ function schedulePublish(): void {
 }
 
 function publish(): void {
-  snapshot = buildSnapshot(tally);
+  const own = [...tallies.values()].map(tallyTraffic);
+  snapshot = mergeTraffic([...own, ...parts.values()]);
   for (const listener of listeners) listener();
 }
 
-function buildSnapshot(source: Tally): Traffic {
+function mergeVerified(carried: Verified, next: Verified): Verified {
+  if (carried === "bad" || next === "bad") return "bad";
+  if (carried === null || next === null) return null;
+  return "ok";
+}
+
+function startSpec(region: Region): RegionSpec | null {
+  if (!region.spec) return null;
+  return {
+    stride: region.spec.stride,
+    count: region.spec.count,
+    crc: region.spec.crc,
+  };
+}
+
+function addBlockCounts(
+  carried: BlockCount | null,
+  next: BlockCount,
+): BlockCount {
+  if (!carried) return { ...next };
+  return {
+    samples: carried.samples + next.samples,
+    done: carried.done + next.done,
+    total: carried.total + next.total,
+    plainDone: carried.plainDone + next.plainDone,
+    plainTotal: carried.plainTotal + next.plainTotal,
+  };
+}
+
+function addSpecs(
+  carried: RegionSpec | null,
+  next: RegionSpec | null,
+): RegionSpec | null {
+  if (!next) return carried;
+  if (!carried) return { ...next };
+  return {
+    stride: carried.stride ?? next.stride,
+    count:
+      carried.count === null || next.count === null
+        ? null
+        : carried.count + next.count,
+    crc: null,
+  };
+}
+
+function tallyTraffic(source: Tally): Traffic {
+  const regions: RegionTraffic[] = [];
   let mapped = 0;
-  const regions = source.regions.map((region, index) => {
-    mapped += source.perRegion[index];
+
+  for (let index = 0; index < source.regions.length; index += 1) {
+    const region = source.regions[index];
+    const downloaded = source.perRegion[index];
     const set = source.blockSets[index];
-    return {
+    mapped += downloaded;
+    regions.push({
       name: region.name,
       code: region.code,
       group: region.group,
+      samples: 1,
       size: region.size,
-      downloaded: source.perRegion[index],
-      spec: region.spec,
+      downloaded,
+      spec: startSpec(region),
       verified: source.verified[index],
       blocks: set
         ? {
+            samples: 1,
             done: set.done,
             total: set.blocks.length,
             plainDone: set.plainDone,
             plainTotal: set.plainTotal,
           }
         : null,
-    };
-  });
+    });
+  }
 
+  const known = source.regions.length > 0;
   return {
-    sample: source.sample,
+    samples: [source.sample],
+    pending: known ? 0 : 1,
     fileSize: source.fileSize,
     blockSize: source.blockSize,
+    blockSizeMixed: false,
     mzWindow: source.mzWindow,
+    mzWindowMixed: false,
     downloaded: source.downloaded,
-    unmapped: Math.max(0, source.downloaded - mapped),
+    unmapped: known ? Math.max(0, source.downloaded - mapped) : 0,
     requests: source.requests,
     regions,
   };
+}
+
+export function mergeTraffic(parts: Traffic[]): Traffic {
+  const regions = new Map<string, RegionTraffic>();
+  const samples: string[] = [];
+  let pending = 0;
+  let fileSize = 0;
+  let downloaded = 0;
+  let requests = 0;
+  let unmapped = 0;
+  let blockSize = 0;
+  let blockSizeMixed = false;
+  let mzWindow = 0;
+  let mzWindowMixed = false;
+
+  for (const part of parts) {
+    samples.push(...part.samples);
+    pending += part.pending;
+    fileSize += part.fileSize;
+    downloaded += part.downloaded;
+    requests += part.requests;
+    unmapped += part.unmapped;
+
+    if (part.blockSize) {
+      if (blockSize === 0) blockSize = part.blockSize;
+      else if (blockSize !== part.blockSize) blockSizeMixed = true;
+    }
+    if (part.blockSizeMixed) blockSizeMixed = true;
+    if (part.mzWindow) {
+      if (mzWindow === 0) mzWindow = part.mzWindow;
+      else if (mzWindow !== part.mzWindow) mzWindowMixed = true;
+    }
+    if (part.mzWindowMixed) mzWindowMixed = true;
+
+    for (const region of part.regions) {
+      const carried = regions.get(region.name);
+      if (!carried) {
+        regions.set(region.name, {
+          ...region,
+          spec: region.spec ? { ...region.spec } : null,
+          blocks: region.blocks ? { ...region.blocks } : null,
+        });
+        continue;
+      }
+      carried.samples += region.samples;
+      carried.size += region.size;
+      carried.downloaded += region.downloaded;
+      carried.verified = mergeVerified(carried.verified, region.verified);
+      carried.spec = addSpecs(carried.spec, region.spec);
+      if (region.blocks) {
+        carried.blocks = addBlockCounts(carried.blocks, region.blocks);
+      }
+    }
+  }
+
+  samples.sort();
+  return {
+    samples,
+    pending,
+    fileSize,
+    blockSize,
+    blockSizeMixed,
+    mzWindow,
+    mzWindowMixed,
+    downloaded,
+    unmapped,
+    requests,
+    regions: [...regions.values()],
+  };
+}
+
+export function applySnapshot(at: number, traffic: Traffic): void {
+  parts.set(at, traffic);
+  publish();
 }
