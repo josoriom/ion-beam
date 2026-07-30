@@ -1,12 +1,7 @@
-![Upload<svg xmlns="http://www.w3.org/2000/svg" width="480" height="110" viewBox="0 0 480 110">
-  <g transform="translate(0 46.5)"><rect x="0" y="2.5" width="6" height="12" rx="6" fill="#9FDCE9"></rect>
-  <rect x="16" y="2.5" width="16" height="12" rx="6" fill="#63C6DC"></rect>
-  <rect x="42" y="2.5" width="30" height="12" rx="6" fill="#10AECC"></rect>
-  <rect x="82" y="2.5" width="48" height="12" rx="6" fill="#10AECC"></rect>
-  <circle cx="148.5" cy="8.5" r="8.5" fill="#16C272"></circle></g>
-  <text x="185" y="80.5" font-family="Space Grotesk, Inter, Helvetica, Arial, sans-serif" font-weight="700" font-size="72" letter-spacing="-1.8" fill="#15201A"><tspan fill="#16C272">ion</tspan>beam</text>
-</svg>ing ionbeam-lockup.svg…]()
-
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/ionbeam-lockup-on-dark.svg">
+  <img src="public/ionbeam-lockup.svg" alt="ionbeam" width="360">
+</picture>
 
 # React + Vite
 
