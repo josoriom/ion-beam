@@ -1,7 +1,7 @@
 import type { Traffic } from "./traffic";
 
 export type AskWorker =
-  | { type: "open"; id: number; url: string }
+  | { type: "open"; id: number; url: string; name: string }
   | {
       type: "eic";
       id: number;

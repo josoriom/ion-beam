@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   selectOpenUrls,
+  selectSampleNames,
   selectTraces,
   type State,
   type Trace,
@@ -12,6 +13,11 @@ export function useOpenUrls(state: State): string[] {
     () => selectOpenUrls({ path, samples, pickedSample, addedSamples }),
     [path, samples, pickedSample, addedSamples],
   );
+}
+
+export function useSampleNames(state: State): Record<string, string> {
+  const { path, samples } = state;
+  return useMemo(() => selectSampleNames({ path, samples }), [path, samples]);
 }
 
 export function useTraces(state: State): Trace[] {

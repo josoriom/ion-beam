@@ -4,6 +4,7 @@ import { getPeaks } from "./ms/peaks";
 import { getBaseline } from "./ms/baseline";
 import { PathInput } from "./components/PathInput";
 import { SampleList } from "./components/SampleList";
+import { FolderList } from "./components/FolderList";
 import { CompoundList } from "./components/CompoundList";
 import { ConfigPanel } from "./components/ConfigPanel";
 import { EicPlot } from "./components/EicPlot";
@@ -101,11 +102,17 @@ function App() {
             )}
             {view.samplesLoading && <p className="banner">Loading samples…</p>}
             {!view.samplesLoading && !view.samplesFailed && (
-              <SampleList
-                samples={view.samples}
-                mainSample={view.mainSample}
-                sampleColors={sampleColors}
-              />
+              <>
+                <FolderList
+                  folders={view.folders}
+                  canGoUp={state.folderStack.length > 0}
+                />
+                <SampleList
+                  samples={view.samples}
+                  mainSample={view.mainSample}
+                  sampleColors={sampleColors}
+                />
+              </>
             )}
           </div>
         )}

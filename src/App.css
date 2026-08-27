@@ -537,6 +537,54 @@ body.resizing .resize-handle::after {
   color: var(--danger);
 }
 
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.folder-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.folder-item:hover {
+  background: var(--primary-soft);
+}
+
+.folder-item.back {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+.folder-mark {
+  flex: none;
+  width: 10px;
+  color: var(--text-soft);
+}
+
+.folder-name {
+  min-width: 0;
+  word-break: break-all;
+}
+
 .sample-empty {
   padding: 8px;
   font-size: 12px;

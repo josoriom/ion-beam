@@ -5,7 +5,7 @@ import { writePaths } from "../utilities/savedPaths";
 import { watchWideScreen } from "../utilities/screen";
 import { DispatchContext, StateContext } from "./context";
 import { SampleLoader } from "./SampleLoader";
-import { useOpenUrls } from "./useTraces";
+import { useOpenUrls, useSampleNames } from "./useTraces";
 import {
   activePath,
   initialState,
@@ -50,17 +50,18 @@ export function AppProvider({ children }: AppProviderProps) {
   const path = activePath(state);
   const { mainKey, mainPoints, mainReady, mz } = selectView(state);
   const openUrls = useOpenUrls(state);
+  const sampleNames = useSampleNames(state);
 
   useEffect(() => {
     if (samples && samples.path === path) return undefined;
     if (path.trim().length === 0) {
-      dispatch({ type: "samplesLoaded", path, names: [] });
+      dispatch({ type: "samplesLoaded", path, entries: [] });
       return undefined;
     }
     let active = true;
     getSamples(path)
-      .then((names) => {
-        if (active) dispatch({ type: "samplesLoaded", path, names });
+      .then((entries) => {
+        if (active) dispatch({ type: "samplesLoaded", path, entries });
       })
       .catch((error: unknown) => {
         if (active)
@@ -105,6 +106,7 @@ export function AppProvider({ children }: AppProviderProps) {
           <SampleLoader
             key={url}
             url={url}
+            name={sampleNames[url] ?? url}
             mz={mz}
             rtFrom={rtFrom}
             rtTo={rtTo}

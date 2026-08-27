@@ -65,14 +65,14 @@ function ask(at: number, message: AskWorker & { id: number }): Promise<WorkerSay
   });
 }
 
-export async function openFile(url: string): Promise<void> {
+export async function openFile(url: string, name: string): Promise<void> {
   let at = workerForUrl.get(url);
   if (at === undefined) {
     at = nextWorker % poolSize();
     nextWorker += 1;
     workerForUrl.set(url, at);
   }
-  await ask(at, { type: "open", id: nextId++, url });
+  await ask(at, { type: "open", id: nextId++, url, name });
 }
 
 export async function readEic(

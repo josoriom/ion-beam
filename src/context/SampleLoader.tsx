@@ -5,6 +5,7 @@ import { eicKey, readError, type Action } from "./reducer";
 
 interface SampleLoaderProps {
   url: string;
+  name: string;
   mz: number | null;
   rtFrom: number;
   rtTo: number;
@@ -15,6 +16,7 @@ interface SampleLoaderProps {
 
 export const SampleLoader = memo(function SampleLoader({
   url,
+  name,
   mz,
   rtFrom,
   rtTo,
@@ -28,7 +30,7 @@ export const SampleLoader = memo(function SampleLoader({
   useEffect(() => {
     let live = true;
     startQuery();
-    openFile(url)
+    openFile(url, name)
       .finally(endQuery)
       .then(() => {
         if (!live) return;
@@ -46,7 +48,7 @@ export const SampleLoader = memo(function SampleLoader({
       closeFile(url);
       dispatch({ type: "fileClosed", url });
     };
-  }, [url, dispatch]);
+  }, [url, name, dispatch]);
 
   useEffect(() => {
     if (!ready || mz === null) return;

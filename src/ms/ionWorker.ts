@@ -33,8 +33,8 @@ function waitForTasks(url: string): Promise<void> {
   return Promise.allSettled([...tasks]).then(() => undefined);
 }
 
-async function open(id: number, url: string): Promise<void> {
-  watchSample(url);
+async function open(id: number, url: string, name: string): Promise<void> {
+  watchSample(url, name);
   try {
     const file = await openIonFile(url);
     if (!files.has(url)) files.set(url, file);
@@ -86,7 +86,7 @@ function close(url: string): void {
 worker.addEventListener("message", (event) => {
   const ask = event.data;
   if (ask.type === "open") {
-    void open(ask.id, ask.url);
+    void open(ask.id, ask.url, ask.name);
     return;
   }
   if (ask.type === "eic") {

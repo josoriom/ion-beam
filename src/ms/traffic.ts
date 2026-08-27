@@ -94,6 +94,7 @@ const maxCheckBytes = 16 * 1024 * 1024;
 const listeners = new Set<() => void>();
 
 const tallies = new Map<string, Tally>();
+const labels = new Map<string, string>();
 const parts = new Map<number, Traffic>();
 
 let snapshot = mergeTraffic([]);
@@ -101,8 +102,9 @@ let publishTimer = 0;
 
 watchDownloads();
 
-export function watchSample(url: string): void {
+export function watchSample(url: string, name?: string): void {
   const sample = readFileName(url);
+  if (name) labels.set(sample, name);
   if (tallies.has(sample)) return;
   tallies.set(sample, newTally(sample));
   publish();
@@ -114,6 +116,7 @@ export function forgetSample(url: string): void {
   if (!found) return;
   found.live = false;
   tallies.delete(sample);
+  labels.delete(sample);
   publish();
 }
 
@@ -511,7 +514,7 @@ function tallyTraffic(source: Tally): Traffic {
 
   const known = source.regions.length > 0;
   return {
-    samples: [source.sample],
+    samples: [labels.get(source.sample) ?? source.sample],
     pending: known ? 0 : 1,
     fileSize: source.fileSize,
     blockSize: source.blockSize,
